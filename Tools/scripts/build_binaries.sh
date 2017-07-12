@@ -201,7 +201,7 @@ board_extension() {
 build_arduplane() {
     tag="$1"
     echo "Building ArduPlane $tag binaries from $(pwd)"
-    for b in erlebrain2 navio navio2 pxf pxfmini disco; do
+    for b in erlebrain2 navio navio2 pxf pxfmini canzero disco; do
         checkout ArduPlane $tag $b "" || {
             echo "Failed checkout of ArduPlane $b $tag"
             error_count=$((error_count+1))
@@ -263,7 +263,7 @@ build_arducopter() {
 
     checkout ArduCopter "latest" "" ""
     
-    for b in erlebrain2 navio navio2 pxf pxfmini bebop aerofc-v1; do
+    for b in erlebrain2 navio navio2 pxf pxfmini canzero bebop aerofc-v1; do
         echo "Building board: $b"
         for f in $frames; do
             if [ "$f" = "none" ]; then
@@ -355,7 +355,7 @@ build_rover() {
         touch $binaries/Rover/$tag
     done
     popd
-    for b in erlebrain2 navio navio2 pxf pxfmini; do
+    for b in erlebrain2 navio navio2 pxf pxfmini canzero; do
         echo "Building APMrover2 $tag $b binaries"
         checkout APMrover2 $tag $b "" || continue
         skip_board_waf $b && continue
@@ -465,7 +465,7 @@ build_antennatracker() {
 build_ardusub() {
     tag="$1"
     echo "Building ArduSub $tag binaries from $(pwd)"
-    for b in erlebrain2 navio navio2 pxf pxfmini; do
+    for b in erlebrain2 navio navio2 pxf pxfmini canzero; do
         echo "Building ArduSub $tag $b binaries"
         checkout ArduSub $tag $b "" || continue
         skip_board_waf $b && continue
