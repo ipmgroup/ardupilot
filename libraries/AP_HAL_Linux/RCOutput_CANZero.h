@@ -2,13 +2,13 @@
 
 #include "AP_HAL_Linux.h"
 //#include "PWM_Sysfs.h"
-#include "RCOutput_Sysfs.h"
+//#include "RCOutput_Sysfs.h"
 
 namespace Linux {
 
 class RCOutput_CANZero : public AP_HAL::RCOutput {
 public:
-	RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_channel_count, uint8_t can_channel_count);
+	RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count, uint8_t can_ch_count);
 	~RCOutput_CANZero();
 
 	static RCOutput_CANZero *from(AP_HAL::RCOutput *rcoutput)
@@ -29,18 +29,20 @@ public:
 
 private:
 	// Instance of RCOutput_Sysfs to control the PWM.
-	RCOutput_Sysfs sysfs_out;
+	//RCOutput_Sysfs sysfs_out;
 	uint8_t pwm_channel_count;
 	uint8_t can_channel_count;
 
 public:
 	// Holds information about the assignment of PWM/CAN channels.
-	class ChannelInfo{
-	public:
+	typedef struct ChannelInfo {
 		uint8_t can:1; // Indicates if the signals to this channel are meant to be sent via CAN.
 		uint8_t hwChan:7; // Indicates the corresponding PWM channel in the hardware or CAN node id.
 		//uint8_t swChan:8; // Channel number as seen by ardupilot.
-	};
+	} ChannelInfo;
+
+	ChannelInfo *ch_inf;
+	int can_socket = 0;
 };
 
 }
