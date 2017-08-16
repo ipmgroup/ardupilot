@@ -17,21 +17,17 @@ namespace Linux {
 	RCOutput_CANZero::RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count, uint8_t can_ch_count)
 	{
 		// Initialize sysfs to use PWM.
-		//sysfs_out = new RCOutput_Sysfs(pwm_chip, pwm_channel_base, pwm_ch_count);
+		sysfs_out = new RCOutput_Sysfs(pwm_chip, pwm_channel_base, pwm_ch_count);
 		this->pwm_channel_count = pwm_ch_count;
 		this->can_channel_count = can_ch_count;
 		this->ch_inf = (ChannelInfo*)calloc(pwm_ch_count+can_ch_count, sizeof(ChannelInfo));
-		//this->can_addr = (struct sockaddr_can*)calloc(1, sizeof(struct sockaddr_can));
-		//this->frame = (struct canfd_frame*)calloc(1, sizeof(struct canfd_frame));
 	}
 
 	RCOutput_CANZero::~RCOutput_CANZero()
 	{
 		if(can_socket != 0) close(can_socket);
 		if(ch_inf != NULL) free(ch_inf);
-		//if(can_addr != NULL) free(can_addr);
-		//if(frame != NULL) free(frame);
-		//sysfs_out.~RCOutput_Sysfs();
+		if(sysfs_out != NULL) (*sysfs_out).~RCOutput_Sysfs();
 	}
 
 	void RCOutput_CANZero::init()
@@ -52,7 +48,7 @@ namespace Linux {
 		}
 
 		// Creating a socket connection and binding it to the available interface.
-		printf("Connecting to socket \"%s\".\n", ifa_current->ifa_name);
+		printf("Connecting to socket and binding to interface \"%s\".\n", ifa_current->ifa_name);
 		can_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 		can_addr_output.can_family = AF_CAN;
 		can_addr_output.can_ifindex = if_nametoindex(can_ifa_name);
@@ -61,8 +57,13 @@ namespace Linux {
 		std::map<uint8_t, uint8_t> ids;
 		scan_devices(&ids);
 
-		for(auto &elem : ids){
-			printf("%x ", elem.first);
+		printf("Discovered devices:");
+		for(std::pair<int,std::map<uint8_t,uint8_t>::iterator> i(0,ids.begin());
+				i.first < can_channel_count && i.second != ids.end();
+				i.first++, i.second++){
+			ch_inf[i.first].hwChan = i.second->first; // Copying ID of the device to the channel info.
+			ch_inf[i.first].can = 1; // Marking the channel as a CAN channel.
+			printf(" [%x|%x]", ch_inf[i.first].hwChan, ch_inf[i.first].can);
 		}
 		printf("\n");
 
@@ -216,9 +217,11 @@ namespace Linux {
 		return 16; /* error */
 	}
 
+	// Returns 0 if the single message timeout was reached (likely no more devices online in the network or they reply very slowly).
+	// Returns 1 if the total timeout was reached (possibly more devices available and/or the network is being flooded by some nodes).
 	int RCOutput_CANZero::scan_devices(std::map<uint8_t, uint8_t> *ids)
 	{
-		int ret = 0;
+		int ret = 1;
 		unsigned int addr_len = sizeof(struct sockaddr_can);
 		int required_mtu = parse_canframe((char*)CAN_SYNC_MSG, &frame_output);
 		::write(can_socket, &frame_output, required_mtu);
@@ -234,20 +237,15 @@ namespace Linux {
 		start_time = (float(tps.tv_nsec)/nsps + tps.tv_sec);
 		while(dt < SCAN_TIMEOUT_TOTAL){
 			if(0 < poll(&fds, 1, SCAN_TIMEOUT_MSG)){
-				printf("starting recvfrom()\n");
 				::recvfrom(can_socket, &frame_input, sizeof(struct can_frame), 0, (struct sockaddr*)&can_addr_input, &addr_len);
-				(*ids)[frame_input.can_id & 0x7F] = frame_input.can_id & 0x7F;
-				printf("received id: %x\n", (*ids)[frame_input.can_id & 0x7F]);
+				(*ids)[frame_input.can_id & 0x7F] = frame_input.can_id & 0x7F; // Creates an entry for the given ID if not already present.
 			}else{
-				printf("aborting scan: %f\n", dt+SCAN_TIMEOUT_MSG/100);
-				ret = 1;
+				ret = 0;
 				break;
 			}
 			clock_gettime(CLOCK_MONOTONIC, &tpe);
 			dt = float((float(tpe.tv_nsec)/nsps + tpe.tv_sec) - start_time);
 		}
-
-		printf("scan finished: %f\n", dt+SCAN_TIMEOUT_MSG/100);
 
 		return ret;
 	}
