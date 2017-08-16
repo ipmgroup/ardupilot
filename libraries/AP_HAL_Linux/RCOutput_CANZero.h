@@ -4,6 +4,16 @@
 //#include "PWM_Sysfs.h"
 //#include "RCOutput_Sysfs.h"
 
+#include "linux/can.h"
+#include "ifaddrs.h"
+#include "unistd.h"
+#include "net/if.h"
+#include "stdio.h"
+#include "sys/select.h"
+#include "time.h"
+#include "sys/poll.h"
+#include "map"
+
 namespace Linux {
 
 class RCOutput_CANZero : public AP_HAL::RCOutput {
@@ -32,6 +42,9 @@ private:
 	//RCOutput_Sysfs sysfs_out;
 	uint8_t pwm_channel_count;
 	uint8_t can_channel_count;
+	int asc2nibble(char c);
+	int parse_canframe(char *cs, struct can_frame *cf);
+	int scan_devices(std::map<uint8_t, uint8_t> *ids); // Scans for available CAN devices.
 
 public:
 	// Holds information about the assignment of PWM/CAN channels.
@@ -43,6 +56,12 @@ public:
 
 	ChannelInfo *ch_inf;
 	int can_socket = 0;
+	char can_ifa_name[8]; // First CAN interface found in init().
+	struct sockaddr_can can_addr_output;
+	struct sockaddr_can can_addr_input;
+
+	struct can_frame frame_output;
+	struct can_frame frame_input;
 };
 
 }
