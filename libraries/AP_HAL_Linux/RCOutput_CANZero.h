@@ -5,12 +5,6 @@
 #include "RCOutput_Sysfs.h"
 
 #include "linux/can.h"
-#include "ifaddrs.h"
-#include "unistd.h"
-#include "net/if.h"
-#include "stdio.h"
-#include "time.h"
-#include "sys/poll.h"
 #include "map"
 
 namespace Linux {
@@ -39,8 +33,12 @@ public:
 private:
 	// Instance of RCOutput_Sysfs to control the PWM.
 	RCOutput_Sysfs *sysfs_out;
+	uint8_t pwm_channel_count_max;
+	uint8_t can_channel_count_max;
+	uint8_t channel_count_max;
 	uint8_t pwm_channel_count;
 	uint8_t can_channel_count;
+	uint8_t channel_count;
 	int asc2nibble(char c);
 	int parse_canframe(char *cs, struct can_frame *cf);
 	int scan_devices(std::map<uint8_t, uint8_t> *ids); // Scans for available CAN devices.
@@ -48,7 +46,8 @@ private:
 	// Holds information about the assignment of PWM/CAN channels.
 	typedef struct ChannelInfo {
 		uint8_t can:1; // Indicates if the signals to this channel are meant to be sent via CAN.
-		uint8_t hwChan:7; // Indicates the corresponding PWM channel in the hardware or CAN node id.
+		uint8_t hw_chan:7; // Indicates the corresponding PWM channel in the hardware or CAN node id.
+		uint16_t freq_hz;
 	} ChannelInfo;
 
 	ChannelInfo *ch_inf;
@@ -57,8 +56,10 @@ private:
 	struct sockaddr_can can_addr_output;
 	struct sockaddr_can can_addr_input;
 
-	struct can_frame frame_output;
-	struct can_frame frame_input;
+	//struct can_frame frame_output;
+	//struct can_frame frame_input;
+
+	char pwmchip[10];
 };
 
 }

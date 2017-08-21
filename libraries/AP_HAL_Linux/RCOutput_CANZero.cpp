@@ -1,5 +1,43 @@
 #include "RCOutput_CANZero.h"
 
+#include "ifaddrs.h"
+#include "unistd.h"
+#include "net/if.h"
+#include "stdio.h"
+#include "time.h"
+#include "sys/poll.h"
+#include "dirent.h"
+#include "string"
+
+//
+#define CAN_SYNC_MSG "080#00" // Message to send during initialization to get the node IDs of all available CAN devices.
+
+#define CAN_SYNC_ID (0x080)
+#define CAN_SYNC_DATA_TYPE (uint8_t)
+#define CAN_SYNC_DATA (0x00)
+#define CAN_SET_RPM_ID (0x580)
+#define CAN_SET_RPM_DATA_TYPE (int32_t)
+#define CAN_SET_RPM_META (0x23FF6000)//(0x60FF) 001 0 00 1 1 1111111101100000 00000000
+#define CAN_SET_RPMPS_ID (0x580)
+#define CAN_SET_RPMPS_DATA_TYPE (uint32_t)
+#define CAN_SET_RPMPS_META (0x23836000)//(0x6083)
+#define CAN_SET_CTL_ID (0x580)
+#define CAN_SET_CTL_DATA_TYPE (uint16_t)
+#define CAN_SET_CTL_META (0x23406000)//(0x6040) 00100011010000000110000000000000
+#define CAN_SET_CTL_ON_DATA (0x03)
+#define CAN_SET_CTL_OFF_DATA (0x00)
+
+#define CAN_GET_RPM_ID (0x600)
+#define CAN_GET_RPM_DATA_TYPE (int32_t)
+#define CAN_GET_RPM_META (0x406C6000)//(0x606C)
+#define CAN_GET_MAX_RPMPS_ID (0x600)
+#define CAN_GET_MAX_RPMPS_DATA_TYPE (float)
+#define CAN_GET_MAX_RPMPS_META (4001200F)//(0x2001.F)
+
+#define CAN_SET_MSG_LEN(L) (((uint32_t)(4-L))<<26) // | with META to get correct metadata.
+#define CAN_GET_MSG_LEN(M) (4-(((uint32_t)M)>>26))
+//
+
 #define CANID_DELIM '#'
 #define DATA_SEPERATOR '.'
 #define CAN_MAX_DLC 8
@@ -8,9 +46,11 @@
 //#define CANFD_MAX_DLEN 64
 //#define CANFD_MTU (sizeof(struct canfd_frame))
 
-#define CAN_SYNC_MSG "080#00"
 #define SCAN_TIMEOUT_TOTAL ((float)3.0) //sec
 #define SCAN_TIMEOUT_MSG ((int)200) //ms
+
+#define PWM_CHIP_PATH "/sys/class/pwm/"
+#define PWM_CHIP_BASE_NAME "pwmchip"
 
 namespace Linux {
 
@@ -18,9 +58,10 @@ namespace Linux {
 	{
 		// Initialize sysfs to use PWM.
 		sysfs_out = new RCOutput_Sysfs(pwm_chip, pwm_channel_base, pwm_ch_count);
-		this->pwm_channel_count = pwm_ch_count;
-		this->can_channel_count = can_ch_count;
-		this->ch_inf = (ChannelInfo*)calloc(pwm_ch_count+can_ch_count, sizeof(ChannelInfo));
+		this->pwm_channel_count_max = pwm_ch_count;
+		this->can_channel_count_max = can_ch_count;
+		this->channel_count_max = pwm_ch_count+can_ch_count;
+		this->ch_inf = (ChannelInfo*)calloc(channel_count_max, sizeof(ChannelInfo));
 	}
 
 	RCOutput_CANZero::~RCOutput_CANZero()
@@ -57,63 +98,120 @@ namespace Linux {
 		std::map<uint8_t, uint8_t> ids;
 		scan_devices(&ids);
 
-		printf("Discovered devices:");
-		for(std::pair<int,std::map<uint8_t,uint8_t>::iterator> i(0,ids.begin());
-				i.first < can_channel_count && i.second != ids.end();
-				i.first++, i.second++){
-			ch_inf[i.first].hwChan = i.second->first; // Copying ID of the device to the channel info.
-			ch_inf[i.first].can = 1; // Marking the channel as a CAN channel.
-			printf(" [%x|%x]", ch_inf[i.first].hwChan, ch_inf[i.first].can);
+		//printf("Discovered devices:");
+		std::pair<int,std::map<uint8_t,uint8_t>::iterator> it(0,ids.begin());
+		for(; it.first < can_channel_count_max && it.second != ids.end();
+				it.first++, it.second++){
+			ch_inf[it.first].hw_chan = it.second->first; // Copying ID of the device to the channel info.
+			ch_inf[it.first].can = 1; // Marking the channel as a CAN channel.
+			//printf(" [%x|%x]", ch_inf[it.first].hw_chan, ch_inf[it.first].can);
 		}
-		printf("\n");
+		can_channel_count = it.first;
+		//printf("\n");
 
-		//sysfs_out.init();
+		// Doesn't seem to work for symlinks.
+//		DIR *dir;
+//		struct dirent *ent;
+//		if((dir = opendir(PWM_CHIP_PATH)) != NULL){
+//			while((ent = readdir(dir)) != NULL){
+//				printf("filename: %s\n", ent->d_name);
+//				if(std::string(ent->d_name).compare(0, strlen(PWM_CHIP_BASE_NAME), PWM_CHIP_BASE_NAME, 0, strlen(PWM_CHIP_BASE_NAME))){
+//					strncpy(pwmchip, ent->d_name, 10);
+//					break;
+//				}
+//			}
+//		}
+
+		//strncpy(pwmchip, PWM_CHIP_BASE_NAME, 9);
+		//strcat(pwmchip, "0");
+		//printf("pwmchip: %s\n", pwmchip);
+		for(int i = 0; i < pwm_channel_count_max; i++){
+			ch_inf[i+can_channel_count].hw_chan = i;
+			ch_inf[i+can_channel_count].can = 0;
+		}
+		pwm_channel_count = pwm_channel_count_max;
+		channel_count = can_channel_count + pwm_channel_count;
+
+		sysfs_out->init();
 		freeifaddrs(if_list_ptr);
 	}
 
 	void RCOutput_CANZero::set_freq(uint32_t chmask, uint16_t freq_hz)
 	{
-		//;
+	    for (uint8_t i = 0; i < channel_count; i++) {
+	        if (chmask & 1 << i) {
+	        	ch_inf[i].freq_hz = freq_hz;
+	        	if(ch_inf[i].can){
+	        		// Do nothing.
+	        	}else{
+	        		sysfs_out->set_freq(chmask >> can_channel_count, freq_hz);
+	        	}
+	        }
+	    }
 	}
 
 	uint16_t RCOutput_CANZero::get_freq(uint8_t ch)
 	{
-		return 0;
+		int freq = 0;
+		if(ch_inf[ch].can){
+			freq = ch_inf[ch].freq_hz;
+		}else{
+			freq = sysfs_out->get_freq(ch_inf[ch].hw_chan);
+			ch_inf[ch].freq_hz = freq;
+		}
+		return freq;
 	}
 
 	void RCOutput_CANZero::enable_ch(uint8_t ch)
 	{
-		//;
+		if(ch_inf[ch].can){
+			//TODO: send controlword 3.
+		}else{
+			sysfs_out->enable_ch(ch_inf[ch].hw_chan);
+		}
 	}
 
 	void RCOutput_CANZero::disable_ch(uint8_t ch)
 	{
-		//;
+		if(ch_inf[ch].can){
+			//TODO: send controlword 0.
+		}else{
+			sysfs_out->disable_ch(ch_inf[ch].hw_chan);
+		}
 	}
 
 	void RCOutput_CANZero::write(uint8_t ch, uint16_t period_us)
 	{
-		//;
+		if(ch_inf[ch].can){
+
+		}else{
+			sysfs_out->write(ch_inf[ch].hw_chan, period_us);
+		}
 	}
 
 	uint16_t RCOutput_CANZero::read(uint8_t ch)
 	{
+		if(ch_inf[ch].can){
+
+		}else{
+			sysfs_out->read(ch_inf[ch].hw_chan);
+		}
 		return 0;
 	}
 
 	void RCOutput_CANZero::read(uint16_t *period_us, uint8_t len)
 	{
-		//;
+		sysfs_out->read(period_us, len);
 	}
 
 	void RCOutput_CANZero::cork(void)
 	{
-
+		sysfs_out->cork();
 	}
 
 	void RCOutput_CANZero::push(void)
 	{
-
+		sysfs_out->push();
 	}
 
 	// https://github.com/linux-can/can-utils/blob/master/lib.c
@@ -223,8 +321,21 @@ namespace Linux {
 	{
 		int ret = 1;
 		unsigned int addr_len = sizeof(struct sockaddr_can);
-		int required_mtu = parse_canframe((char*)CAN_SYNC_MSG, &frame_output);
-		::write(can_socket, &frame_output, required_mtu);
+		struct can_frame frame_output;
+		struct can_frame frame_input;
+		//int required_mtu = parse_canframe((char*)CAN_SYNC_MSG, &frame_output);
+		frame_output.can_id = CAN_SYNC_ID;
+		frame_output.can_dlc = 0;
+		//TODO: implement proper frame generation.
+
+		printf("frame_output.data at id %x:", frame_output.can_id);
+		for(int i = 0; i < frame_output.can_dlc; i++){
+			printf(" %x", frame_output.data[i]);
+		}
+		printf("\n");
+
+		//::write(can_socket, &frame_output, required_mtu);
+		::write(can_socket, &frame_output, CAN_MTU);
 
 		struct pollfd fds = {can_socket, POLLIN, 0};
 		struct timespec tps = {0, 0}; // Start time.
