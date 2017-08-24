@@ -1,6 +1,7 @@
 #include "RCOutput_CANZero.h"
 
 #include "ifaddrs.h"
+#include "stdint.h"
 #include "unistd.h"
 #include "net/if.h"
 #include "stdio.h"
@@ -8,6 +9,7 @@
 #include "sys/poll.h"
 //#include "dirent.h"
 #include "string"
+#include "linux/can/raw.h"
 
 //
 //#define CAN_SYNC_MSG "080#00" // Message to send during initialization to get the node IDs of all available CAN devices.
@@ -15,22 +17,24 @@
 #define CAN_SYNC_ID (0x080)
 #define CAN_SYNC_DATA_TYPE uint8_t
 #define CAN_SYNC_DATA (0x00)
-#define CAN_SET_RPM_ID (0x580)
+#define CAN_SET_RPM_ID (0x600)
 #define CAN_SET_RPM_DATA_TYPE int32_t
 #define CAN_SET_RPM_META (0x23FF6000)//(0x60FF) 001 0 00 1 1 1111111101100000 00000000
-#define CAN_SET_RPMPS_ID (0x580)
+#define CAN_SET_RPMPS_ID (0x600)
 #define CAN_SET_RPMPS_DATA_TYPE uint32_t
 #define CAN_SET_RPMPS_META (0x23836000)//(0x6083)
-#define CAN_SET_CTL_ID (0x580)
+#define CAN_SET_CTL_ID (0x600)
 #define CAN_SET_CTL_DATA_TYPE uint16_t
 #define CAN_SET_CTL_META (0x23406000)//(0x6040) 00100011010000000110000000000000
 #define CAN_SET_CTL_ON_DATA (0x0003)
 #define CAN_SET_CTL_OFF_DATA (0x0000)
 
-#define CAN_GET_RPM_ID (0x600)
+#define CAN_GET_RPM_REQ_ID (0x600)
+#define CAN_GET_RPM_RESP_ID (0x580)
 #define CAN_GET_RPM_DATA_TYPE int32_t
 #define CAN_GET_RPM_META (0x406C6000)//(0x606C)
-#define CAN_GET_MAX_RPMPS_ID (0x600)
+#define CAN_GET_MAX_RPMPS_REQ_ID (0x600)
+#define CAN_GET_MAX_RPMPS_RESP_ID (0x580)
 #define CAN_GET_MAX_RPMPS_DATA_TYPE float
 #define CAN_GET_MAX_RPMPS_META (4001200F)//(0x2001.F)
 
@@ -46,8 +50,13 @@
 //#define CANFD_MAX_DLEN 64
 //#define CANFD_MTU (sizeof(struct canfd_frame))
 
+//#define SOL_CAN_BASE 100
+//#define SOL_CAN_RAW (SOL_CAN_BASE + CAN_RAW)
+
 #define SCAN_TIMEOUT_TOTAL ((float)3.0) //sec
 #define SCAN_TIMEOUT_MSG ((int)200) //ms
+#define CAN_RECV_TIMEOUT_TOTAL ((float)0.01) //sec
+#define CAN_RECV_TIMEOUT_MSG ((int)1) //ms
 
 #define PWM_CHIP_PATH "/sys/class/pwm/"
 #define PWM_CHIP_BASE_NAME "pwmchip"
@@ -62,12 +71,14 @@ namespace Linux {
 		this->can_channel_count_max = can_ch_count;
 		this->channel_count_max = pwm_ch_count+can_ch_count;
 		this->ch_inf = (ChannelInfo*)calloc(channel_count_max, sizeof(ChannelInfo));
+		this->_pending = (uint16_t*)calloc(channel_count_max, sizeof(uint16_t));
 	}
 
 	RCOutput_CANZero::~RCOutput_CANZero()
 	{
 		if(can_socket != 0) close(can_socket);
 		if(ch_inf != NULL) free(ch_inf);
+		if(_pending != NULL) free(_pending);
 		if(sysfs_out != NULL) (*sysfs_out).~RCOutput_Sysfs();
 	}
 
@@ -97,6 +108,10 @@ namespace Linux {
 
 		std::map<uint8_t, uint8_t> ids;
 		scan_devices(&ids);
+
+		// Discard any frames received, so that the buffer is empty when a response to a specific request is expected.
+		set_default_filter();
+		clear_socket_buffer(can_socket);
 
 		//printf("Discovered CAN devices:");
 		std::pair<int,std::map<uint8_t,uint8_t>::iterator> it(0,ids.begin());
@@ -137,6 +152,9 @@ namespace Linux {
 
 	uint16_t RCOutput_CANZero::get_freq(uint8_t ch)
 	{
+		if(ch >= channel_count){
+			return;
+		}
 		if(ch_inf[ch].can){
 			// Do nothing.
 		}else{
@@ -147,6 +165,9 @@ namespace Linux {
 
 	void RCOutput_CANZero::enable_ch(uint8_t ch)
 	{
+		if(ch >= channel_count){
+			return;
+		}
 		if(ch_inf[ch].can){
 			can_frame frame_output;
 			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, CAN_SET_CTL_ON_DATA);
@@ -158,6 +179,9 @@ namespace Linux {
 
 	void RCOutput_CANZero::disable_ch(uint8_t ch)
 	{
+		if(ch >= channel_count){
+			return;
+		}
 		if(ch_inf[ch].can){
 			can_frame frame_output;
 			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, CAN_SET_CTL_OFF_DATA);
@@ -168,6 +192,19 @@ namespace Linux {
 	}
 
 	void RCOutput_CANZero::write(uint8_t ch, uint16_t period_us)
+	{
+		if(ch >= channel_count){
+			return;
+		}
+		if(_corked){
+	        _pending[ch] = period_us;
+	        _pending_mask |= (1U<<ch);
+		}else{
+			_write(ch, period_us);
+		}
+	}
+
+	void RCOutput_CANZero::_write(uint8_t ch, uint16_t period_us)
 	{
 		if(ch_inf[ch].can){
 			CAN_SET_RPM_DATA_TYPE rpm = ppm_to_rpm<CAN_SET_RPM_DATA_TYPE>(period_us);
@@ -181,26 +218,43 @@ namespace Linux {
 
 	uint16_t RCOutput_CANZero::read(uint8_t ch)
 	{
-		if(ch_inf[ch].can){
-
-		}else{
-			sysfs_out->read(ch_inf[ch].hw_chan);
+		if(ch >= channel_count){
+			return 1000;
 		}
-		return 0;
+		uint16_t ppm;
+		if(ch_inf[ch].can){
+			can_frame frame_output;
+			can_frame frame_input;
+			generate_frame(&frame_output, CAN_GET_RPM_REQ_ID, (uint16_t)ch, CAN_GET_RPM_META, (uint32_t)0);
+			recv_filtered(&frame_output, &frame_input, CAN_GET_RPM_RESP_ID, (uint16_t)ch, CAN_GET_RPM_META);
+			CAN_GET_RPM_DATA_TYPE rpm;
+			data_array_to_var(frame_input.data+4, &rpm);
+			ppm = rpm_to_ppm(rpm);
+		}else{
+			ppm = sysfs_out->read(ch_inf[ch].hw_chan);
+		}
+		return ppm;
 	}
 
 	void RCOutput_CANZero::read(uint16_t *period_us, uint8_t len)
 	{
-		sysfs_out->read(period_us, len);
+	    for (int i = 0; i < MIN(len, channel_count); i++) {
+	        period_us[i] = read(i);
+	    }
+	    for (int i = _channel_count; i < len; i++) {
+	        period_us[i] = 1000;
+	    }
 	}
 
 	void RCOutput_CANZero::cork(void)
 	{
+		_corked = true;
 		sysfs_out->cork();
 	}
 
 	void RCOutput_CANZero::push(void)
 	{
+		//TODO
 		sysfs_out->push();
 	}
 
@@ -210,6 +264,8 @@ namespace Linux {
 	{
 		int ret = 1;
 		unsigned int addr_len = sizeof(struct sockaddr_can);
+		//struct sockaddr_can can_addr_output;
+		//struct sockaddr_can can_addr_input;
 		struct can_frame frame_output;
 		struct can_frame frame_input;
 		generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
@@ -263,11 +319,76 @@ namespace Linux {
 		}
 	}
 
-	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width){
+	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width)
+	{
 		return ((float(max_rpm))/1000)*(float(pulse_width)-1500);
 	}
 
-	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm){
+	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm)
+	{
 		return (float(rpm)/float(max_rpm))*500+1500;
+	}
+
+	template<typename T> void RCOutput_CANZero::data_array_to_var(uint8_t *data, T *var){
+		*var = 0;
+		for(int i = 0; i < sizeof(T); i++){
+			*var |= (T)((((uint64_t)data[i])&0xFF)<<i*8);
+		}
+	}
+
+	int RCOutput_CANZero::recv_filtered(can_frame *frame_output, can_frame *frame_input, uint16_t base_id, uint16_t node_id, uint32_t meta)
+	{
+		int ret = 0;
+		struct pollfd fds = {can_socket, POLLIN, 0};
+		struct timespec tps = {0, 0}; // Start time.
+		float start_time = 0; // Start time in s.
+		struct timespec tpe = {0, 0}; // Current time/end time.
+		float dt = 0; // Time difference in s.
+		const float nsps = 1000000000; // nanoseconds per second
+		unsigned int addr_len = sizeof(struct sockaddr_can);
+		//struct sockaddr_can can_addr_input;
+
+		struct can_filter rfilter;
+		rfilter.can_id = base_id | node_id;
+		rfilter.can_mask = 0x07FF;
+		//struct can_filter *rfilter_ptr = &rfilter;
+
+		setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter));
+
+		::write(can_socket, &frame_output, CAN_MTU);
+
+		clock_gettime(CLOCK_MONOTONIC, &tps);
+		start_time = (float(tps.tv_nsec)/nsps + tps.tv_sec);
+		while(dt < SCAN_TIMEOUT_TOTAL){
+			if(0 < (ret = poll(&fds, 1, CAN_RECV_TIMEOUT_MSG))){
+				::recvfrom(can_socket, &frame_input, sizeof(struct can_frame), 0, (struct sockaddr*)&can_addr_input, &addr_len);
+			}else{
+				ret = 0;
+				break;
+			}
+			clock_gettime(CLOCK_MONOTONIC, &tpe);
+			dt = float((float(tpe.tv_nsec)/nsps + tpe.tv_sec) - start_time);
+		}
+
+		// Setting the filter back to the default setting.
+		set_default_filter();
+
+		return ret;
+	}
+
+	void RCOutput_CANZero::clear_socket_buffer(int socket){
+		struct pollfd fds = {socket, POLLIN, 0};
+		struct can_frame frame_input;
+		int data_available = poll(&fds, 1, 0);
+		data_available = data_available<0?0:data_available; // Make sure errors are evaluated to false.
+		while(data_available){
+			::recv(socket, &frame_input, sizeof(frame_input), 0);
+			data_available = poll(&fds, 1, 0);
+			data_available = data_available<0?0:data_available; // Make sure errors are evaluated to false.
+		}
+	}
+
+	void RCOutput_CANZero::set_default_filter(){
+		setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, NULL, 0);
 	}
 }
