@@ -10,6 +10,8 @@
 //#include "dirent.h"
 #include "string"
 #include "linux/can/raw.h"
+#include "AP_Math/AP_Math.h"
+#include "AP_Param/AP_Param.h"
 
 //
 //#define CAN_SYNC_MSG "080#00" // Message to send during initialization to get the node IDs of all available CAN devices.
@@ -153,7 +155,7 @@ namespace Linux {
 	uint16_t RCOutput_CANZero::get_freq(uint8_t ch)
 	{
 		if(ch >= channel_count){
-			return;
+			return 0;
 		}
 		if(ch_inf[ch].can){
 			// Do nothing.
@@ -241,7 +243,7 @@ namespace Linux {
 	    for (int i = 0; i < MIN(len, channel_count); i++) {
 	        period_us[i] = read(i);
 	    }
-	    for (int i = _channel_count; i < len; i++) {
+	    for (int i = channel_count; i < len; i++) {
 	        period_us[i] = 1000;
 	    }
 	}
@@ -254,8 +256,17 @@ namespace Linux {
 
 	void RCOutput_CANZero::push(void)
 	{
-		//TODO
-		sysfs_out->push();
+	    if (!_corked) {
+	        return;
+	    }
+	    for (uint8_t i=0; i<channel_count; i++) {
+	        if (((1U<<i) & _pending_mask)/* && ch_inf[i].can*/) {
+				_write(i, _pending[i]);
+	        }
+	    }
+	    sysfs_out->push();
+	    _pending_mask = 0;
+	    _corked = false;
 	}
 
 	// Returns 0 if the single message timeout was reached (likely no more devices online in the network or they reply very slowly).
