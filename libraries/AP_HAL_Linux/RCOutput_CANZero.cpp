@@ -321,18 +321,18 @@ namespace Linux {
 		if(!ignore_meta){
 			meta |= CAN_SET_MSG_LEN(sizeof(value));
 			for(; pos < sizeof(meta); pos++){
-				frame->data[pos] = (meta >> 8*(sizeof(meta)-1-pos)) && 0xFF;
+				frame->data[pos] = (meta >> (8*(sizeof(meta)-1-pos))) & 0xFF;
 			}
 		}
 
 		for(int i = pos; i < frame->can_dlc; i++){
-			frame->data[pos] = (value >> 8*(i-pos)) && 0xFF;
+			frame->data[i] = (value >> (8*(i-pos))) & 0xFF;
 		}
 	}
 
 	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width)
 	{
-		return ((float(max_rpm))/1000)*(float(pulse_width)-1500);
+		return ((float(max_rpm))/500)*(float(pulse_width)-1500);
 	}
 
 	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm)
