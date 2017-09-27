@@ -12,6 +12,7 @@
 #include "linux/can/raw.h"
 #include "AP_Math/AP_Math.h"
 #include "AP_Param/AP_Param.h"
+#include "AP_BoardConfig/AP_BoardConfig.h"
 
 //
 //#define CAN_SYNC_MSG "080#00" // Message to send during initialization to get the node IDs of all available CAN devices.
@@ -28,7 +29,7 @@
 #define CAN_SET_CTL_ID (0x600)
 #define CAN_SET_CTL_DATA_TYPE uint16_t
 #define CAN_SET_CTL_META (0x23406000)//(0x6040) 00100011010000000110000000000000
-#define CAN_SET_CTL_ON_DATA (0x0003)
+//#define CAN_SET_CTL_ON_DATA (0x0003)
 #define CAN_SET_CTL_OFF_DATA (0x0000)
 
 #define CAN_GET_RPM_REQ_ID (0x600)
@@ -86,6 +87,15 @@ namespace Linux {
 
 	void RCOutput_CANZero::init()
 	{
+		if(AP_Param::initialised()){
+			//printf("Parameters initialized.\n");
+			AP_BoardConfig* BoardParams = (AP_BoardConfig*)AP_Param::find_object("BRD_");
+			ctl_on = (uint16_t)BoardParams->CANZero_CTL;
+			max_rpm = (int32_t)BoardParams->CANZero_SPD;
+			rpmps = (int32_t)BoardParams->CANZero_ACC;
+			//printf("max_rpm: %d\n", max_rpm);
+		}
+
 		struct ifaddrs if_list;
 		struct ifaddrs* if_list_ptr = &if_list;
 		getifaddrs(&if_list_ptr); // Get list of available interfaces.
@@ -102,7 +112,7 @@ namespace Linux {
 		}
 
 		// Creating a socket connection and binding it to the available interface.
-		printf("Connecting to socket and binding to interface \"%s\".\n", ifa_current->ifa_name);
+		//printf("Connecting to socket and binding to interface \"%s\".\n", ifa_current->ifa_name);
 		can_socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 		can_addr_output.can_family = AF_CAN;
 		can_addr_output.can_ifindex = if_nametoindex(can_ifa_name);
@@ -134,6 +144,8 @@ namespace Linux {
 		}
 		pwm_channel_count = pwm_channel_count_max;
 		channel_count = can_channel_count + pwm_channel_count;
+
+		set_acceleration_all(rpmps);
 
 		freeifaddrs(if_list_ptr);
 	}
@@ -172,7 +184,7 @@ namespace Linux {
 		}
 		if(ch_inf[ch].can){
 			can_frame frame_output;
-			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, CAN_SET_CTL_ON_DATA);
+			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, ctl_on);
 			::write(can_socket, &frame_output, CAN_MTU);
 		}else{
 			sysfs_out->enable_ch(ch_inf[ch].hw_chan);
@@ -267,6 +279,26 @@ namespace Linux {
 	    sysfs_out->push();
 	    _pending_mask = 0;
 	    _corked = false;
+	}
+
+	template<typename T> void RCOutput_CANZero::set_acceleration(uint8_t ch, T acc)
+	{
+		if(ch_inf[ch].can){
+			can_frame frame_output;
+			generate_frame<CAN_SET_RPMPS_DATA_TYPE>(&frame_output, CAN_SET_RPMPS_ID, ch_inf[ch].hw_chan, CAN_SET_RPMPS_META, acc);
+			::write(can_socket, &frame_output, CAN_MTU);
+		}
+	}
+
+	template<typename T> void RCOutput_CANZero::set_acceleration_all(T acc)
+	{
+		for(uint8_t ch = 0; ch < channel_count; ch++){
+			if(ch_inf[ch].can){
+				can_frame frame_output;
+				generate_frame<CAN_SET_RPMPS_DATA_TYPE>(&frame_output, CAN_SET_RPMPS_ID, ch_inf[ch].hw_chan, CAN_SET_RPMPS_META, acc);
+				::write(can_socket, &frame_output, CAN_MTU);
+			}
+		}
 	}
 
 	// Returns 0 if the single message timeout was reached (likely no more devices online in the network or they reply very slowly).

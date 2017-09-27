@@ -39,7 +39,11 @@ private:
 	uint8_t pwm_channel_count;
 	uint8_t can_channel_count;
 	uint8_t channel_count;
+
+	uint16_t ctl_on = 3;
 	int32_t max_rpm = 3500;
+	int32_t rpmps = 2000;
+
 	int scan_devices(std::map<uint8_t, uint8_t> *ids); // Scans for available CAN devices.
 	template<typename T> void generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta = 0);
 	template<typename T> T ppm_to_rpm(uint16_t pulse_width); //ppm pulse width min 1000, null 1500, max 2000
@@ -49,6 +53,8 @@ private:
 	void set_default_filter();
 	int recv_filtered(can_frame *frame_output, can_frame *frame_input, uint16_t base_id, uint16_t node_id, uint32_t meta);
 	void _write(uint8_t ch, uint16_t period_us);
+	template<typename T> void set_acceleration(uint8_t ch, T acc);
+	template<typename T> void set_acceleration_all(T acc);
 
 	// Holds information about the assignment of PWM/CAN channels.
 	typedef struct ChannelInfo {
