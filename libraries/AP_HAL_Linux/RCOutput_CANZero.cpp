@@ -13,6 +13,7 @@
 #include "AP_Math/AP_Math.h"
 #include "AP_Param/AP_Param.h"
 #include "AP_BoardConfig/AP_BoardConfig.h"
+#include "AP_Vehicle/AP_Vehicle_Type.h"
 
 //
 //#define CAN_SYNC_MSG "080#00" // Message to send during initialization to get the node IDs of all available CAN devices.
@@ -88,12 +89,13 @@ namespace Linux {
 	void RCOutput_CANZero::init()
 	{
 		if(AP_Param::initialised()){
+			AP_Param::load_all(false);
 			//printf("Parameters initialized.\n");
 			AP_BoardConfig* BoardParams = (AP_BoardConfig*)AP_Param::find_object("BRD_");
 			ctl_on = (uint16_t)BoardParams->CANZero_CTL;
 			max_rpm = (int32_t)BoardParams->CANZero_SPD;
 			rpmps = (int32_t)BoardParams->CANZero_ACC;
-			//printf("max_rpm: %d\n", max_rpm);
+			//printf("max_rpm: %d\n", (int32_t)BoardParams->CANZero_SPD);
 		}
 
 		struct ifaddrs if_list;
@@ -146,6 +148,7 @@ namespace Linux {
 		channel_count = can_channel_count + pwm_channel_count;
 
 		set_acceleration_all(rpmps);
+		//enable_ch(2);
 
 		freeifaddrs(if_list_ptr);
 	}
@@ -183,6 +186,7 @@ namespace Linux {
 			return;
 		}
 		if(ch_inf[ch].can){
+			//printf("Enabling channel %d.\n", ch_inf[ch].hw_chan);
 			can_frame frame_output;
 			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, ctl_on);
 			::write(can_socket, &frame_output, CAN_MTU);
@@ -210,6 +214,8 @@ namespace Linux {
 		if(ch >= channel_count){
 			return;
 		}
+		//printf("ppm: %d\nmax rpm: %d\n_corked: %d\n", period_us, max_rpm, _corked);
+		//if(!_corked) printf("not corked\n");
 		if(_corked){
 	        _pending[ch] = period_us;
 	        _pending_mask |= (1U<<ch);
@@ -222,8 +228,19 @@ namespace Linux {
 	{
 		if(ch_inf[ch].can){
 			CAN_SET_RPM_DATA_TYPE rpm = ppm_to_rpm<CAN_SET_RPM_DATA_TYPE>(period_us);
+
+			//printf("Requested rpm: %d\n", rpm);
+
+			// Ignore negative rpm when using copter.
+#if APM_BUILD_TYPE(APM_BUILD_ArduCopter)
+			if(rpm < 0){
+				rpm = 0;
+			}
+#endif
+
 			can_frame frame_output;
 			generate_frame<CAN_SET_RPM_DATA_TYPE>(&frame_output, CAN_SET_RPM_ID, ch_inf[ch].hw_chan, CAN_SET_RPM_META, rpm);
+			//printf("Applied rpm: %d\n", rpm);
 			::write(can_socket, &frame_output, CAN_MTU);
 		}else{
 			sysfs_out->write(ch_inf[ch].hw_chan, period_us);
@@ -262,6 +279,7 @@ namespace Linux {
 
 	void RCOutput_CANZero::cork(void)
 	{
+		//printf("cork()\n");
 		_corked = true;
 		sysfs_out->cork();
 	}
@@ -271,6 +289,7 @@ namespace Linux {
 	    if (!_corked) {
 	        return;
 	    }
+	    //printf("push()\n");
 	    for (uint8_t i=0; i<channel_count; i++) {
 	        if (((1U<<i) & _pending_mask)/* && ch_inf[i].can*/) {
 				_write(i, _pending[i]);
@@ -360,11 +379,21 @@ namespace Linux {
 		for(int i = pos; i < frame->can_dlc; i++){
 			frame->data[i] = (value >> (8*(i-pos))) & 0xFF;
 		}
+
+		// *** Send a complete 8 byte frame.
+		for(int i = frame->can_dlc; i < 8; i++){
+			frame->data[i] = 0x00;
+		}
+
+		frame->can_dlc = 8;
+		// ***
 	}
 
 	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width)
 	{
-		return ((float(max_rpm))/500)*(float(pulse_width)-1500);
+		T rpm = ((float(max_rpm))/500)*(float(pulse_width)-1500);
+		//printf("ppm: %d\nrpm: %d\nmax rpm: %d\n", pulse_width, rpm, max_rpm);
+		return rpm;//((float(max_rpm))/500)*(float(pulse_width)-1500);
 	}
 
 	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm)
