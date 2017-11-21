@@ -65,6 +65,8 @@
 #define PWM_CHIP_PATH "/sys/class/pwm/"
 #define PWM_CHIP_BASE_NAME "pwmchip"
 
+uint16_t previous_ppm[4] = {0,0,0,0};
+
 namespace Linux {
 
 	RCOutput_CANZero::RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count, uint8_t can_ch_count)
@@ -226,10 +228,13 @@ namespace Linux {
 
 	void RCOutput_CANZero::_write(uint8_t ch, uint16_t period_us)
 	{
+		ch_inf[ch].ppm = period_us;
 		if(ch_inf[ch].can){
 			CAN_SET_RPM_DATA_TYPE rpm = ppm_to_rpm<CAN_SET_RPM_DATA_TYPE>(period_us);
 
-			//printf("Requested rpm: %d\n", rpm);
+//			if(ch <= 3 && previous_ppm[ch] != period_us){
+//				printf("Channel: %02X\nReceived ppm: %d\nCorresponding rpm: %d\n", ch, period_us, rpm);
+//			}
 
 			// Ignore negative rpm when using copter.
 #if APM_BUILD_TYPE(APM_BUILD_ArduCopter)
@@ -240,7 +245,12 @@ namespace Linux {
 
 			can_frame frame_output;
 			generate_frame<CAN_SET_RPM_DATA_TYPE>(&frame_output, CAN_SET_RPM_ID, ch_inf[ch].hw_chan, CAN_SET_RPM_META, rpm);
-			//printf("Applied rpm: %d\n", rpm);
+
+//			if(ch <= 3 && previous_ppm[ch] != period_us){
+//				printf("CAN frame data: %02X %02X %02X %02X\n", frame_output.data[4], frame_output.data[5], frame_output.data[6], frame_output.data[7]);
+//				previous_ppm[ch] = period_us;
+//			}
+
 			::write(can_socket, &frame_output, CAN_MTU);
 		}else{
 			sysfs_out->write(ch_inf[ch].hw_chan, period_us);
@@ -254,13 +264,14 @@ namespace Linux {
 		}
 		uint16_t ppm;
 		if(ch_inf[ch].can){
-			can_frame frame_output;
-			can_frame frame_input;
-			generate_frame(&frame_output, CAN_GET_RPM_REQ_ID, (uint16_t)ch, CAN_GET_RPM_META, (uint32_t)0);
-			recv_filtered(&frame_output, &frame_input, CAN_GET_RPM_RESP_ID, (uint16_t)ch, CAN_GET_RPM_META);
-			CAN_GET_RPM_DATA_TYPE rpm;
-			data_array_to_var(frame_input.data+4, &rpm);
-			ppm = rpm_to_ppm(rpm);
+//			can_frame frame_output;
+//			can_frame frame_input;
+//			generate_frame(&frame_output, CAN_GET_RPM_REQ_ID, (uint16_t)ch_inf[ch].hw_chan, CAN_GET_RPM_META, (uint32_t)0);
+//			recv_filtered(&frame_output, &frame_input, CAN_GET_RPM_RESP_ID, (uint16_t)ch_inf[ch].hw_chan, CAN_GET_RPM_META);
+//			CAN_GET_RPM_DATA_TYPE rpm;
+//			data_array_to_var(frame_input.data+4, &rpm);
+//			ppm = rpm_to_ppm(rpm);
+			ppm = ch_inf[ch].ppm;
 		}else{
 			ppm = sysfs_out->read(ch_inf[ch].hw_chan);
 		}
@@ -404,8 +415,10 @@ namespace Linux {
 	template<typename T> void RCOutput_CANZero::data_array_to_var(uint8_t *data, T *var){
 		*var = 0;
 		for(int i = 0; i < sizeof(T); i++){
+			//printf("%02x", data[i]);
 			*var |= (T)((((uint64_t)data[i])&0xFF)<<i*8);
 		}
+		//printf("\n");
 	}
 
 	int RCOutput_CANZero::recv_filtered(can_frame *frame_output, can_frame *frame_input, uint16_t base_id, uint16_t node_id, uint32_t meta)
@@ -423,17 +436,17 @@ namespace Linux {
 		struct can_filter rfilter;
 		rfilter.can_id = base_id | node_id;
 		rfilter.can_mask = 0x07FF;
-		//struct can_filter *rfilter_ptr = &rfilter;
 
 		setsockopt(can_socket, SOL_CAN_RAW, CAN_RAW_FILTER, &rfilter, sizeof(rfilter));
 
-		::write(can_socket, &frame_output, CAN_MTU);
+		::write(can_socket, frame_output, CAN_MTU);
 
 		clock_gettime(CLOCK_MONOTONIC, &tps);
 		start_time = (float(tps.tv_nsec)/nsps + tps.tv_sec);
-		while(dt < SCAN_TIMEOUT_TOTAL){
+		while(dt < CAN_RECV_TIMEOUT_TOTAL){
 			if(0 < (ret = poll(&fds, 1, CAN_RECV_TIMEOUT_MSG))){
-				::recvfrom(can_socket, &frame_input, sizeof(struct can_frame), 0, (struct sockaddr*)&can_addr_input, &addr_len);
+				::recvfrom(can_socket, frame_input, sizeof(struct can_frame), 0, (struct sockaddr*)&can_addr_input, &addr_len);
+				printf("%x: %02x%02x%02x%02x %02x%02x%02x%02x\n", (uint32_t)frame_input->can_id, frame_input->data[0], frame_input->data[1], frame_input->data[2], frame_input->data[3], frame_input->data[4], frame_input->data[5], frame_input->data[6], frame_input->data[7]);
 			}else{
 				ret = 0;
 				break;

@@ -61,6 +61,7 @@ private:
 		uint8_t can:1; // Indicates if the signals to this channel are meant to be sent via CAN.
 		uint8_t hw_chan:7; // Indicates the corresponding PWM channel in the hardware or CAN node id.
 		uint16_t freq_hz;
+		int16_t ppm; // Holds the last requested ppm value.
 	} ChannelInfo;
 
 	ChannelInfo *ch_inf;
