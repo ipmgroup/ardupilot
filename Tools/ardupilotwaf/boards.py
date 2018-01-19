@@ -617,6 +617,9 @@ class pxfmini(linux):
         
 class canzero(linux):
     toolchain = 'arm-linux-gnueabihf'
+    
+    def __init__(self):
+        self.with_uavcan = True
 
     def configure_env(self, cfg, env):
         super(canzero, self).configure_env(cfg, env)
