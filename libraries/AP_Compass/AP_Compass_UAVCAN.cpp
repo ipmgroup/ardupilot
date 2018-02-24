@@ -47,7 +47,7 @@ AP_Compass_UAVCAN::~AP_Compass_UAVCAN()
     if (_initialized)
     {
         if (hal.can_mgr[_manager] != nullptr) {
-            AP_UAVCAN *ap_uavcan = hal.can_mgr[_manager]->get_UAVCAN();
+            AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[_manager]);
             if (ap_uavcan != nullptr) {
                 ap_uavcan->remove_mag_listener(this);
 
@@ -64,7 +64,7 @@ AP_Compass_Backend *AP_Compass_UAVCAN::probe(Compass &compass)
     if (AP_BoardConfig_CAN::get_can_num_ifaces() != 0) {
         for (uint8_t i = 0; i < MAX_NUMBER_OF_CAN_DRIVERS; i++) {
             if (hal.can_mgr[i] != nullptr) {
-                AP_UAVCAN *uavcan = hal.can_mgr[i]->get_UAVCAN();
+                AP_UAVCAN *uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[i]);
                 if (uavcan != nullptr) {
                     uint8_t freemag = uavcan->find_smallest_free_mag_node();
                     if (freemag != UINT8_MAX) {
@@ -88,7 +88,7 @@ AP_Compass_Backend *AP_Compass_UAVCAN::probe(Compass &compass)
 bool AP_Compass_UAVCAN::register_uavcan_compass(uint8_t mgr, uint8_t node)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             _manager = mgr;
 

@@ -90,6 +90,29 @@ public:
 };
 
 /**
+ * Generic CAN protocol driver.
+ */
+class AP_HAL::CANProtocol {
+public:
+    // FIXME: how to move it? ;]
+    // static const struct AP_Param::GroupInfo var_info[20];
+
+    CANProtocol(): _parent_can_mgr(nullptr) {
+    };
+
+    virtual void do_cyclic(void) = 0;
+    virtual bool try_init(void)  = 0;
+
+    void set_parent_can_mgr(AP_HAL::CANManager* parent_can_mgr)
+    {
+        _parent_can_mgr = parent_can_mgr;
+    }
+
+protected:
+    AP_HAL::CANManager* _parent_can_mgr;
+};
+
+/**
  * Generic CAN driver.
  */
 class AP_HAL::CANManager {
@@ -115,8 +138,8 @@ public:
     virtual bool is_initialized() = 0;
     virtual void initialized(bool val) = 0;
 
-    virtual AP_UAVCAN *get_UAVCAN(void) = 0;
-    virtual void set_UAVCAN(AP_UAVCAN *uavcan) = 0;
+    virtual CANProtocol *get_CANProtocol(void) = 0;
+    virtual void set_CANProtocol(CANProtocol *) = 0;
     uavcan::ICanDriver* get_driver() { return _driver; }
 private:
     uavcan::ICanDriver* _driver;

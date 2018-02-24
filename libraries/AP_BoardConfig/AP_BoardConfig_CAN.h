@@ -46,7 +46,7 @@ public:
 
     public:
         CAN_driver_var_info() :
-                _uavcan(nullptr)
+                _can_protocol(nullptr)
         {
             AP_Param::setup_object_defaults(this, var_info);
         }
@@ -55,7 +55,7 @@ public:
     private:
         AP_Int8 _protocol;
 
-        AP_UAVCAN* _uavcan;
+        AP_HAL::CANProtocol* _can_protocol;
     };
 
     // returns number of enabled CAN interfaces

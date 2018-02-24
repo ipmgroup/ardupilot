@@ -189,10 +189,10 @@ public:
     virtual void initialized(bool val);
     virtual bool is_initialized();
 
-    AP_UAVCAN *p_uavcan;
+    AP_HAL::CANProtocol *p_can_protocol;
 
-    virtual AP_UAVCAN *get_UAVCAN(void) override;
-    virtual void set_UAVCAN(AP_UAVCAN *uavcan) override;
+    virtual AP_HAL::CANProtocol *get_CANProtocol(void) override;
+    virtual void set_CANProtocol(AP_HAL::CANProtocol *) override;
 
     //These methods belong to ICanDriver (which is an ancestor of AP_HAL::CANManager)
     

@@ -31,6 +31,7 @@ namespace AP_HAL {
 
     class CANManager;
     class CAN;
+    class CANProtocol;
 
     class Util;
 

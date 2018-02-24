@@ -47,7 +47,7 @@
 #define AP_UAVCAN_MAX_LED_DEVICES 4
 #define AP_UAVCAN_LED_DELAY_MILLISECONDS 50
 
-class AP_UAVCAN {
+class AP_UAVCAN: public AP_HAL::CANProtocol {
 public:
     AP_UAVCAN();
     ~AP_UAVCAN();
@@ -257,8 +257,6 @@ private:
 
     uint8_t _uavcan_i;
 
-    AP_HAL::CANManager* _parent_can_mgr;
-
 public:
     void do_cyclic(void);
     bool try_init(void);
@@ -271,10 +269,9 @@ public:
     void rco_write(uint16_t pulse_len, uint8_t ch);
     bool led_write(uint8_t led_index, uint8_t red, uint8_t green, uint8_t blue);
 
-    void set_parent_can_mgr(AP_HAL::CANManager* parent_can_mgr)
-    {
-        _parent_can_mgr = parent_can_mgr;
-    }
+    static AP_UAVCAN* get_UAVCAN(AP_HAL::CANManager *mgr);
+
+
 };
 
 #endif /* AP_UAVCAN_H_ */

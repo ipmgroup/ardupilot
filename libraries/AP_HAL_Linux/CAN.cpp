@@ -462,10 +462,10 @@ void CANManager::_timer_tick()
 {
     if (!_initialized) return;
 
-    if (p_uavcan != nullptr) {
-        p_uavcan->do_cyclic();
+    if (p_can_protocol != nullptr) {
+        p_can_protocol->do_cyclic();
     } else {
-        hal.console->printf("p_uavcan is nullptr");
+        hal.console->printf("p_can_protocol is nullptr");
     }
 }
 
@@ -487,14 +487,14 @@ void CANManager::initialized(bool val)
     _initialized = val;
 }
 
-AP_UAVCAN *CANManager::get_UAVCAN(void)
+AP_HAL::CANProtocol *CANManager::get_CANProtocol(void)
 {
-    return p_uavcan;
+    return p_can_protocol;
 }
 
-void CANManager::set_UAVCAN(AP_UAVCAN *uavcan)
+void CANManager::set_CANProtocol(AP_HAL::CANProtocol *can_protocol)
 {
-    p_uavcan = uavcan;
+    p_can_protocol = can_protocol;
 }
 
 CAN* CANManager::getIface(uint8_t iface_index)

@@ -9,6 +9,8 @@
 
 #if HAL_WITH_UAVCAN
 
+#include <typeinfo>
+
 #include "AP_UAVCAN.h"
 #include <GCS_MAVLink/GCS.h>
 
@@ -77,7 +79,7 @@ const AP_Param::GroupInfo AP_UAVCAN::var_info[] = {
 static void gnss_fix_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_GPS::GPS_State *state = ap_uavcan->find_gps_node(msg.getSrcNodeID().get());
 
@@ -186,7 +188,7 @@ static void (*gnss_fix_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void gnss_aux_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_GPS::GPS_State *state = ap_uavcan->find_gps_node(msg.getSrcNodeID().get());
 
@@ -213,7 +215,7 @@ static void (*gnss_aux_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void magnetic_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_UAVCAN::Mag_Info *state = ap_uavcan->find_mag_node(msg.getSrcNodeID().get(), 0);
             if (state != nullptr) {
@@ -238,7 +240,7 @@ static void (*magnetic_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void magnetic_cb_2(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_UAVCAN::Mag_Info *state = ap_uavcan->find_mag_node(msg.getSrcNodeID().get(), msg.sensor_id);
             if (state != nullptr) {
@@ -263,7 +265,7 @@ static void (*magnetic_cb_2_arr[2])(const uavcan::ReceivedDataStructure<uavcan::
 static void air_data_sp_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_UAVCAN::Baro_Info *state = ap_uavcan->find_baro_node(msg.getSrcNodeID().get());
 
@@ -289,7 +291,7 @@ static void (*air_data_sp_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan:
 static void air_data_st_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_UAVCAN::Baro_Info *state = ap_uavcan->find_baro_node(msg.getSrcNodeID().get());
 
@@ -1353,6 +1355,14 @@ AP_UAVCAN *AP_UAVCAN::get_uavcan(uint8_t iface)
         return nullptr;
     }
     return hal.can_mgr[iface]->get_UAVCAN();
+}
+
+AP_UAVCAN* AP_UAVCAN::get_UAVCAN(AP_HAL::CANManager *mgr)
+{
+    CANProtocol *p = mgr->get_CANProtocol();
+    if (typeid(*p) == typeid(AP_UAVCAN*))
+        return dynamic_cast<AP_UAVCAN*>(p);
+    return nullptr;
 }
 
 #endif // HAL_WITH_UAVCAN

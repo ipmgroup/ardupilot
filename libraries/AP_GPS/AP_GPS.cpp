@@ -440,7 +440,7 @@ void AP_GPS::detect_instance(uint8_t instance)
         if (AP_BoardConfig_CAN::get_can_num_ifaces() >= 1) {
             for (uint8_t i = 0; i < MAX_NUMBER_OF_CAN_DRIVERS; i++) {
                 if (hal.can_mgr[i] != nullptr) {
-                    AP_UAVCAN *uavcan = hal.can_mgr[i]->get_UAVCAN();
+                    AP_UAVCAN *uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[i]);
 
                     if (uavcan != nullptr) {
                         uint8_t gps_node = uavcan->find_gps_without_listener();

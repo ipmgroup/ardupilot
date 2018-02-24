@@ -39,7 +39,7 @@ AP_GPS_UAVCAN::AP_GPS_UAVCAN(AP_GPS &_gps, AP_GPS::GPS_State &_state, AP_HAL::UA
 AP_GPS_UAVCAN::~AP_GPS_UAVCAN()
 {
     if (hal.can_mgr[_manager] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[_manager]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[_manager]);
         if (ap_uavcan != nullptr) {
             ap_uavcan->remove_gps_listener(this);
 

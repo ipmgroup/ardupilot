@@ -132,16 +132,16 @@ void AP_BoardConfig_CAN::setup_canbus(void)
                 printf("can_mgr %d initialized well\n\r", i + 1);
 
                 if (_var_info_can_protocol[i]._protocol == UAVCAN_PROTOCOL_ENABLE) {
-                    _var_info_can_protocol[i]._uavcan = new AP_UAVCAN;
+                    _var_info_can_protocol[i]._can_protocol = new AP_UAVCAN;
 
-                    if (_var_info_can_protocol[i]._uavcan != nullptr)
+                    if (_var_info_can_protocol[i]._can_protocol != nullptr)
                     {
-                        AP_Param::load_object_from_eeprom(_var_info_can_protocol[i]._uavcan, AP_UAVCAN::var_info);
+                        AP_Param::load_object_from_eeprom(_var_info_can_protocol[i]._can_protocol, AP_UAVCAN::var_info);
 
-                        hal.can_mgr[i]->set_UAVCAN(_var_info_can_protocol[i]._uavcan);
-                        _var_info_can_protocol[i]._uavcan->set_parent_can_mgr(hal.can_mgr[i]);
+                        hal.can_mgr[i]->set_CANProtocol(_var_info_can_protocol[i]._can_protocol);
+                        _var_info_can_protocol[i]._can_protocol->set_parent_can_mgr(hal.can_mgr[i]);
 
-                        if (_var_info_can_protocol[i]._uavcan->try_init() == true) {
+                        if (_var_info_can_protocol[i]._can_protocol->try_init() == true) {
                             any_uavcan_present = true;
                         } else {
                             printf("Failed to initialize uavcan interface %d\n\r", i + 1);
