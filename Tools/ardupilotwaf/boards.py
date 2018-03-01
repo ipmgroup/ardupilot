@@ -167,7 +167,7 @@ class Board:
         if self.with_uavcan:
             env.AP_LIBRARIES += [
                 'AP_UAVCAN',
-                'modules/uavcan/libuavcan/src/**/*.cpp'
+                'modules/uavcan/libuavcan/src/**/*.cpp'                
                 ]
 
             env.CXXFLAGS += [
@@ -622,6 +622,9 @@ class canzero(linux):
 
         env.DEFINES.update(
             CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_LINUX_CANZERO',
+        )
+        env.AP_LIBRARIES += (
+           'AP_CANOpen',           
         )
 
 class aero(linux):

@@ -350,7 +350,9 @@ int CAN::_write(const uavcan::CanFrame& frame) const
     errno = 0;
 
     const can_frame sockcan_frame = makeSocketCanFrame(frame);
+    unsigned char *p = (unsigned char *)&sockcan_frame;
 
+    printf ("fd[%d] %02x%02x: %02x %02x %02x %02x \n", _fd, p[0], p[1], p[2], p[3], p[4], p[5]);
     const int res = write(_fd, &sockcan_frame, sizeof(sockcan_frame));
     if (res <= 0) {
         if (errno == ENOBUFS || errno == EAGAIN) {  // Writing is not possible atm, not an error
@@ -359,6 +361,7 @@ int CAN::_write(const uavcan::CanFrame& frame) const
         return res;
     }
     if (res != sizeof(sockcan_frame)) {
+        printf ("6\n");
         return -1;
     }
     return 1;
@@ -499,6 +502,10 @@ void CANManager::set_CANProtocol(AP_HAL::CANProtocol *can_protocol)
 
 CAN* CANManager::getIface(uint8_t iface_index)
 {
+    if (iface_index != 0)
+//        printf ("________________ ");
+    iface_index = 0;
+//    printf ("!!!!!!!!!! %d, size:  _ifaces.size() %d, %p\n", iface_index,  _ifaces.size(), (iface_index >= _ifaces.size()) ? nullptr : _ifaces[iface_index].get());
     return (iface_index >= _ifaces.size()) ? nullptr : _ifaces[iface_index].get();
 }
 

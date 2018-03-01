@@ -217,6 +217,10 @@
 #define HAL_WITH_UAVCAN 0
 #endif
 
+#ifndef HAL_WITH_CANOPEN
+#define HAL_WITH_CANOPEN 0
+#endif
+
 #ifndef HAL_WITH_IO_MCU
 #define HAL_WITH_IO_MCU 0
 #endif

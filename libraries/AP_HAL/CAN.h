@@ -32,8 +32,6 @@
 #define MAX_NUMBER_OF_CAN_INTERFACES    2
 #define MAX_NUMBER_OF_CAN_DRIVERS       2
 
-class AP_UAVCAN;
-
 /**
  * Single non-blocking CAN interface.
  */
@@ -94,9 +92,6 @@ public:
  */
 class AP_HAL::CANProtocol {
 public:
-    // FIXME: how to move it? ;]
-    // static const struct AP_Param::GroupInfo var_info[20];
-
     CANProtocol(): _parent_can_mgr(nullptr) {
     };
 

@@ -18,6 +18,7 @@
 #if HAL_WITH_UAVCAN
 #include <AP_BoardConfig/AP_BoardConfig_CAN.h>
 #include <AP_UAVCAN/AP_UAVCAN.h>
+#include <AP_CANOpen/AP_CANOpen.h>
 #endif
 
 extern const AP_HAL::HAL& hal;
@@ -546,6 +547,27 @@ void PX4RCOutput::_send_outputs(void)
                             ap_uc->rc_out_sem_give();
                         }
                     }
+                    
+                    AP_CANOpen *ap_uc = hal.can_mgr[i]->get_CANopen();
+                    if (ap_uc != nullptr)
+                    {
+                        if (ap_uc->rc_out_sem_take())
+                        {
+                            for (uint8_t j = 0; j < _max_channel; j++)
+                            {
+                                ap_uc->rco_write(_period[j], j);
+                            }
+
+                            if (hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED) {
+                                ap_uc->rco_arm_actuators(true);
+                            } else {
+                                ap_uc->rco_arm_actuators(false);
+                            }
+
+                            ap_uc->rc_out_sem_give();
+                        }
+                    }                    
+                    
                 }
             }
         }

@@ -36,6 +36,7 @@
 #endif
 
 #include <AP_UAVCAN/AP_UAVCAN.h>
+#include <AP_CANOpen/AP_CANOpen.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -150,10 +151,32 @@ void AP_BoardConfig_CAN::setup_canbus(void)
                     } else {
                         AP_HAL::panic("Failed to allocate uavcan %d\n\r", i + 1);
                     }
+ //                   continue;
+                }
+                if (_var_info_can_protocol[i]._protocol == CANOPEN_PROTOCOL_ENABLE) {
+                    _var_info_can_protocol[i]._can_protocol = new AP_CANOpen;
+                    printf("CANOPEN PROTOCOL ENABLE %d\n\r", i + 1);
+
+                    if (_var_info_can_protocol[i]._can_protocol != nullptr)
+                    {
+                        AP_Param::load_object_from_eeprom(_var_info_can_protocol[i]._can_protocol, AP_CANOpen::var_info);
+
+                        hal.can_mgr[i]->set_CANProtocol(_var_info_can_protocol[i]._can_protocol);
+                        _var_info_can_protocol[i]._can_protocol->set_parent_can_mgr(hal.can_mgr[i]);
+
+                        if (_var_info_can_protocol[i]._can_protocol->try_init() == true) {
+                            any_uavcan_present = true;
+                        } else {
+                            printf("Failed to initialize uavcan/canopen interface %d\n\r", i + 1);
+                        }
+
+                    } else {
+                        AP_HAL::panic("Failed to allocate uavcan/canopen %d\n\r", i + 1);
+                    }
+ //                   continue;
                 }
             }
         }
-
         if (any_uavcan_present) {
             // start UAVCAN working thread
             hal.scheduler->create_uavcan_thread();

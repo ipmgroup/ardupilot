@@ -92,7 +92,7 @@ void PX4Scheduler::init()
 
 void PX4Scheduler::create_uavcan_thread()
 {
-#if HAL_WITH_UAVCAN
+#if HAL_WITH_UAVCAN || HAL_WITH_CANOPEN
     pthread_attr_t thread_attr;
     struct sched_param param;
 
@@ -106,7 +106,7 @@ void PX4Scheduler::create_uavcan_thread()
 
     for (uint8_t i = 0; i < MAX_NUMBER_OF_CAN_DRIVERS; i++) {
         if (hal.can_mgr[i] != nullptr) {
-            if (hal.can_mgr[i]->get_UAVCAN() != nullptr) {
+            if (hal.can_mgr[i]->get_CANProtocol() != nullptr) {
                 _uavcan_thread_arg *arg = new _uavcan_thread_arg;
                 arg->sched = this;
                 arg->uavcan_number = i;
@@ -413,7 +413,7 @@ void *PX4Scheduler::_storage_thread(void *arg)
     return nullptr;
 }
 
-#if HAL_WITH_UAVCAN
+#if HAL_WITH_UAVCAN || HAL_WITH_CANOPEN
 void *PX4Scheduler::_uavcan_thread(void *arg)
 {
     PX4Scheduler *sched = ((_uavcan_thread_arg *) arg)->sched;
@@ -429,8 +429,8 @@ void *PX4Scheduler::_uavcan_thread(void *arg)
 
     while (!_px4_thread_should_exit) {
         if (((PX4CANManager *)hal.can_mgr[uavcan_number])->is_initialized()) {
-            if (((PX4CANManager *)hal.can_mgr[uavcan_number])->get_UAVCAN() != nullptr) {
-                (((PX4CANManager *)hal.can_mgr[uavcan_number])->get_UAVCAN())->do_cyclic();
+            if (((PX4CANManager *)hal.can_mgr[uavcan_number])->get_CANProtocol() != nullptr) {
+                (((PX4CANManager *)hal.can_mgr[uavcan_number])->get_CANProtocol())->do_cyclic();
             } else {
                 sched->delay_microseconds_semaphore(10000);
             }

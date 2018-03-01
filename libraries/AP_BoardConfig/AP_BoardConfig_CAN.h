@@ -8,7 +8,8 @@
 #include <sys/ioctl.h>
 #endif
 #if HAL_WITH_UAVCAN
-#define UAVCAN_PROTOCOL_ENABLE  1
+#define UAVCAN_PROTOCOL_ENABLE   1
+#define CANOPEN_PROTOCOL_ENABLE  2
 
 class AP_BoardConfig_CAN {
 public:
