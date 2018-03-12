@@ -1,5 +1,5 @@
 /*
- * AP_CANOpen.cpp
+ * AP_CANopen.cpp
  *
  *      Author: Eugene Shamaev
  */
@@ -12,7 +12,7 @@
 
 #include <typeinfo>
 
-#include "AP_CANOpen.h"
+#include "../AP_CANopen/AP_CANopen.h"
 #include <GCS_MAVLink/GCS.h>
 
 #include <AP_BoardConfig/AP_BoardConfig.h>
@@ -34,8 +34,8 @@ extern const AP_HAL::HAL& hal;
 
 #define debug_canopen(level, fmt, args...) do { if ((level) <= AP_BoardConfig_CAN::get_can_debug()) { hal.console->printf(fmt, ##args); }} while (0)
 
-// Translation of all messages from CANOpen structures into AP structures is done
-// in AP_CANOpen and not in corresponding drivers.
+// Translation of all messages from CANopen structures into AP structures is done
+// in AP_CANopen and not in corresponding drivers.
 // The overhead of including definitions of DSDL is very high and it is best to
 // concentrate in one place.
 
@@ -44,27 +44,27 @@ extern const AP_HAL::HAL& hal;
 // of listeners/nodes should be added.
 
 // table of user settable CAN bus parameters
-const AP_Param::GroupInfo AP_CANOpen::var_info[] = {
+const AP_Param::GroupInfo AP_CANopen::var_info[] = {
     // @Param: NODE
-    // @DisplayName: CANOpen node that is used for this network
-    // @Description: CANOpen node should be set implicitly
+    // @DisplayName: CANopen node that is used for this network
+    // @Description: CANopen node should be set implicitly
     // @Range: 1 250
     // @User: Advanced
-    AP_GROUPINFO("NODs", 1, AP_CANOpen, _canopen_node, 1),
+    AP_GROUPINFO("NODs", 1, AP_CANopen, _canopen_node, 1),
 
     // @Param: SRV_BM
-    // @DisplayName: RC Out channels to be transmitted as servo over CANOpen
-    // @Description: Bitmask with one set for channel to be transmitted as a servo command over CANOpen
+    // @DisplayName: RC Out channels to be transmitted as servo over CANopen
+    // @Description: Bitmask with one set for channel to be transmitted as a servo command over CANopen
     // @Bitmask: 0: Servo 1, 1: Servo 2, 2: Servo 3, 3: Servo 4, 4: Servo 5, 5: Servo 6, 6: Servo 7, 7: Servo 8, 8: Servo 9, 9: Servo 10, 10: Servo 11, 11: Servo 12, 12: Servo 13, 13: Servo 14, 14: Servo 15
     // @User: Advanced
-    AP_GROUPINFO("SRV_Bs", 2, AP_CANOpen, _servo_bm, 255),
+    AP_GROUPINFO("SRV_Bs", 2, AP_CANopen, _servo_bm, 255),
 
     // @Param: ESC_BM
-    // @DisplayName: RC Out channels to be transmitted as ESC over CANOpen
-    // @Description: Bitmask with one set for channel to be transmitted as a ESC command over CANOpen
+    // @DisplayName: RC Out channels to be transmitted as ESC over CANopen
+    // @Description: Bitmask with one set for channel to be transmitted as a ESC command over CANopen
     // @Bitmask: 0: ESC 1, 1: ESC 2, 2: ESC 3, 3: ESC 4, 4: ESC 5, 5: ESC 6, 6: ESC 7, 7: ESC 8, 8: ESC 9, 9: ESC 10, 10: ESC 11, 11: ESC 12, 12: ESC 13, 13: ESC 14, 14: ESC 15, 15: ESC 16
     // @User: Advanced
-    AP_GROUPINFO("ESC_Bs", 3, AP_CANOpen, _esc_bm, 255),
+    AP_GROUPINFO("ESC_Bs", 3, AP_CANopen, _esc_bm, 255),
 
     AP_GROUPEND
 };
@@ -72,7 +72,7 @@ const AP_Param::GroupInfo AP_CANOpen::var_info[] = {
 static void gnss_fix_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
             AP_GPS::GPS_State *state = ap_canopen->find_gps_node(msg.getSrcNodeID().get());
 
@@ -181,7 +181,7 @@ static void (*gnss_fix_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void gnss_aux_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
             AP_GPS::GPS_State *state = ap_canopen->find_gps_node(msg.getSrcNodeID().get());
 
@@ -208,9 +208,9 @@ static void (*gnss_aux_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void magnetic_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
-            AP_CANOpen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), 0);
+            AP_CANopen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), 0);
             if (state != nullptr) {
                 state->mag_vector[0] = msg.magnetic_field_ga[0];
                 state->mag_vector[1] = msg.magnetic_field_ga[1];
@@ -233,9 +233,9 @@ static void (*magnetic_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::eq
 static void magnetic_cb_2(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
-            AP_CANOpen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), msg.sensor_id);
+            AP_CANopen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), msg.sensor_id);
             if (state != nullptr) {
                 state->mag_vector[0] = msg.magnetic_field_ga[0];
                 state->mag_vector[1] = msg.magnetic_field_ga[1];
@@ -258,9 +258,9 @@ static void (*magnetic_cb_2_arr[2])(const uavcan::ReceivedDataStructure<uavcan::
 static void air_data_sp_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
-            AP_CANOpen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
+            AP_CANopen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
 
             if (state != nullptr) {
                 state->pressure = msg.static_pressure;
@@ -284,9 +284,9 @@ static void (*air_data_sp_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan:
 static void air_data_st_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_CANOpen *ap_canopen = AP_CANOpen::get_CANOpen(hal.can_mgr[mgr]);
+        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
         if (ap_canopen != nullptr) {
-            AP_CANOpen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
+            AP_CANopen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
 
             if (state != nullptr) {
                 state->temperature = msg.static_temperature;
@@ -307,7 +307,7 @@ static void (*air_data_st_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan:
 static uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>* act_out_array[MAX_NUMBER_OF_CAN_DRIVERS];
 static uavcan::Publisher<uavcan::equipment::esc::RawCommand>* esc_raw[MAX_NUMBER_OF_CAN_DRIVERS];
 
-AP_CANOpen::AP_CANOpen() :
+AP_CANopen::AP_CANopen() :
     _node_allocator(
         CANOPEN_NODE_POOL_SIZE, CANOPEN_NODE_POOL_SIZE)
 {
@@ -347,14 +347,14 @@ AP_CANOpen::AP_CANOpen() :
 
     _rc_out_sem = hal.util->new_semaphore();
 
-    debug_canopen(2, "AP_CANOpen constructed\n\r");
+    debug_canopen(2, "AP_CANopen constructed\n\r");
 }
 
-AP_CANOpen::~AP_CANOpen()
+AP_CANopen::~AP_CANopen()
 {
 }
 
-bool AP_CANOpen::try_init(void)
+bool AP_CANopen::try_init(void)
 {
     if (_parent_can_mgr != nullptr) {
         if (_parent_can_mgr->is_initialized() && !_initialized) {
@@ -405,7 +405,7 @@ bool AP_CANOpen::try_init(void)
 
                     const int node_start_res = node->start();
                     if (node_start_res < 0) {
-                        debug_canopen(1, "CANOpen: node start problem\n\r");
+                        debug_canopen(1, "CANopen: node start problem\n\r");
                     }
 
                     uavcan::Subscriber<uavcan::equipment::gnss::Fix> *gnss_fix;
@@ -413,7 +413,7 @@ bool AP_CANOpen::try_init(void)
 
                     const int gnss_fix_start_res = gnss_fix->start(gnss_fix_cb_arr[_canopen_i]);
                     if (gnss_fix_start_res < 0) {
-                        debug_canopen(1, "CANOpen GNSS subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen GNSS subscriber start problem\n\r");
                         return false;
                     }
 
@@ -421,7 +421,7 @@ bool AP_CANOpen::try_init(void)
                     gnss_aux = new uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary>(*node);
                     const int gnss_aux_start_res = gnss_aux->start(gnss_aux_cb_arr[_canopen_i]);
                     if (gnss_aux_start_res < 0) {
-                        debug_canopen(1, "CANOpen GNSS Aux subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen GNSS Aux subscriber start problem\n\r");
                         return false;
                     }
 
@@ -429,7 +429,7 @@ bool AP_CANOpen::try_init(void)
                     magnetic = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength>(*node);
                     const int magnetic_start_res = magnetic->start(magnetic_cb_arr[_canopen_i]);
                     if (magnetic_start_res < 0) {
-                        debug_canopen(1, "CANOpen Compass subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen Compass subscriber start problem\n\r");
                         return false;
                     }
                     
@@ -437,7 +437,7 @@ bool AP_CANOpen::try_init(void)
                     magnetic2 = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2>(*node);
                     const int magnetic_start_res_2 = magnetic2->start(magnetic_cb_2_arr[_canopen_i]);
                     if (magnetic_start_res_2 < 0) {
-                        debug_canopen(1, "CANOpen Compass for multiple mags subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen Compass for multiple mags subscriber start problem\n\r");
                         return false;
                     }
 
@@ -445,7 +445,7 @@ bool AP_CANOpen::try_init(void)
                     air_data_sp = new uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure>(*node);
                     const int air_data_sp_start_res = air_data_sp->start(air_data_sp_cb_arr[_canopen_i]);
                     if (air_data_sp_start_res < 0) {
-                        debug_canopen(1, "CANOpen Baro subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen Baro subscriber start problem\n\r");
                         return false;
                     }
 
@@ -453,7 +453,7 @@ bool AP_CANOpen::try_init(void)
                     air_data_st = new uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature>(*node);
                     const int air_data_st_start_res = air_data_st->start(air_data_st_cb_arr[_canopen_i]);
                     if (air_data_st_start_res < 0) {
-                        debug_canopen(1, "CANOpen Temperature subscriber start problem\n\r");
+                        debug_canopen(1, "CANopen Temperature subscriber start problem\n\r");
                         return false;
                     }
 
@@ -473,7 +473,7 @@ bool AP_CANOpen::try_init(void)
 
                     _initialized = true;
 
-                    debug_canopen(1, "CANOpen: init done\n\r");
+                    debug_canopen(1, "CANopen: init done\n\r");
 
                     return true;
                 }
@@ -488,21 +488,21 @@ bool AP_CANOpen::try_init(void)
     return false;
 }
 
-bool AP_CANOpen::rc_out_sem_take()
+bool AP_CANopen::rc_out_sem_take()
 {
     bool sem_ret = _rc_out_sem->take(10);
     if (!sem_ret) {
-        debug_canopen(1, "AP_CANOpen RCOut semaphore fail\n\r");
+        debug_canopen(1, "AP_CANopen RCOut semaphore fail\n\r");
     }
     return sem_ret;
 }
 
-void AP_CANOpen::rc_out_sem_give()
+void AP_CANopen::rc_out_sem_give()
 {
     _rc_out_sem->give();
 }
 
-void AP_CANOpen::rc_out_send_servos(void)
+void AP_CANopen::rc_out_send_servos(void)
 {
     uint8_t starting_servo = 0;
     bool repeat_send;
@@ -512,14 +512,14 @@ void AP_CANOpen::rc_out_send_servos(void)
         uavcan::equipment::actuator::ArrayCommand msg;
 
         uint8_t i;
-        // CANOpen can hold maximum of 15 commands in one frame
+        // CANopen can hold maximum of 15 commands in one frame
         for (i = 0; starting_servo < CANOPEN_RCO_NUMBER && i < 15; starting_servo++) {
             uavcan::equipment::actuator::Command cmd;
 
             /*
              * Servo output uses a range of 1000-2000 PWM for scaling.
              * This converts output PWM from [1000:2000] range to [-1:1] range that
-             * is passed to servo as unitless type via CANOpen.
+             * is passed to servo as unitless type via CANopen.
              * This approach allows for MIN/TRIM/MAX values to be used fully on
              * autopilot side and for servo it should have the setup to provide maximum
              * physically possible throws at [-1:1] limits.
@@ -550,7 +550,7 @@ void AP_CANOpen::rc_out_send_servos(void)
     } while (repeat_send);
 }
 
-void AP_CANOpen::rc_out_send_esc(void)
+void AP_CANopen::rc_out_send_esc(void)
 {
     static const int cmd_max = uavcan::equipment::esc::RawCommand::FieldTypes::cmd::RawValueType::max();
     uavcan::equipment::esc::RawCommand esc_msg;
@@ -593,7 +593,7 @@ void AP_CANOpen::rc_out_send_esc(void)
     }
 }
 
-void AP_CANOpen::do_cyclic(void)
+void AP_CANopen::do_cyclic(void)
 {
     if (!_initialized) {
         hal.scheduler->delay_microseconds(1000);
@@ -632,7 +632,7 @@ void AP_CANOpen::do_cyclic(void)
 	}
 }
 
-void AP_CANOpen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
+void AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
 {
     if (len > 8) {
         len = 8;
@@ -649,7 +649,7 @@ void AP_CANOpen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
 
 }
 
-//template<typename T> void AP_CANOpen::generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta)
+//template<typename T> void AP_CANopen::generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta)
 //{
 //	frame->can_id = base_id | node_id;
 //
@@ -680,12 +680,12 @@ void AP_CANOpen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
 //	// ***
 //}
 
-uavcan::ISystemClock & AP_CANOpen::get_system_clock()
+uavcan::ISystemClock & AP_CANopen::get_system_clock()
 {
     return SystemClock::instance();
 }
 
-uavcan::ICanDriver * AP_CANOpen::get_can_driver()
+uavcan::ICanDriver * AP_CANopen::get_can_driver()
 {
     if (_parent_can_mgr != nullptr) {
         if (_parent_can_mgr->is_initialized() == false) {
@@ -697,7 +697,7 @@ uavcan::ICanDriver * AP_CANOpen::get_can_driver()
     return nullptr;
 }
 
-uavcan::Node<0> *AP_CANOpen::get_node()
+uavcan::Node<0> *AP_CANopen::get_node()
 {
     if (_node == nullptr && get_can_driver() != nullptr) {
         _node = new uavcan::Node<0>(*get_can_driver(), get_system_clock(), _node_allocator);
@@ -706,7 +706,7 @@ uavcan::Node<0> *AP_CANOpen::get_node()
     return _node;
 }
 
-void AP_CANOpen::rco_set_safety_pwm(uint32_t chmask, uint16_t pulse_len)
+void AP_CANopen::rco_set_safety_pwm(uint32_t chmask, uint16_t pulse_len)
 {
     for (uint8_t i = 0; i < CANOPEN_RCO_NUMBER; i++) {
         if (chmask & (((uint32_t) 1) << i)) {
@@ -715,7 +715,7 @@ void AP_CANOpen::rco_set_safety_pwm(uint32_t chmask, uint16_t pulse_len)
     }
 }
 
-void AP_CANOpen::rco_set_failsafe_pwm(uint32_t chmask, uint16_t pulse_len)
+void AP_CANopen::rco_set_failsafe_pwm(uint32_t chmask, uint16_t pulse_len)
 {
     for (uint8_t i = 0; i < CANOPEN_RCO_NUMBER; i++) {
         if (chmask & (((uint32_t) 1) << i)) {
@@ -724,28 +724,28 @@ void AP_CANOpen::rco_set_failsafe_pwm(uint32_t chmask, uint16_t pulse_len)
     }
 }
 
-void AP_CANOpen::rco_force_safety_on(void)
+void AP_CANopen::rco_force_safety_on(void)
 {
     _rco_safety = true;
 }
 
-void AP_CANOpen::rco_force_safety_off(void)
+void AP_CANopen::rco_force_safety_off(void)
 {
     _rco_safety = false;
 }
 
-void AP_CANOpen::rco_arm_actuators(bool arm)
+void AP_CANopen::rco_arm_actuators(bool arm)
 {
     _rco_armed = arm;
 }
 
-void AP_CANOpen::rco_write(uint16_t pulse_len, uint8_t ch)
+void AP_CANopen::rco_write(uint16_t pulse_len, uint8_t ch)
 {
     _rco_conf[ch].pulse = pulse_len;
     _rco_conf[ch].active = true;
 }
 
-uint8_t AP_CANOpen::find_gps_without_listener(void)
+uint8_t AP_CANopen::find_gps_without_listener(void)
 {
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
         if (_gps_listeners[i] == nullptr && _gps_nodes[i] != UINT8_MAX) {
@@ -756,7 +756,7 @@ uint8_t AP_CANOpen::find_gps_without_listener(void)
     return UINT8_MAX;
 }
 
-uint8_t AP_CANOpen::register_gps_listener(AP_GPS_Backend* new_listener, uint8_t preferred_channel)
+uint8_t AP_CANopen::register_gps_listener(AP_GPS_Backend* new_listener, uint8_t preferred_channel)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
@@ -794,7 +794,7 @@ uint8_t AP_CANOpen::register_gps_listener(AP_GPS_Backend* new_listener, uint8_t 
     return ret;
 }
 
-uint8_t AP_CANOpen::register_gps_listener_to_node(AP_GPS_Backend* new_listener, uint8_t node)
+uint8_t AP_CANopen::register_gps_listener_to_node(AP_GPS_Backend* new_listener, uint8_t node)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
 
@@ -822,7 +822,7 @@ uint8_t AP_CANOpen::register_gps_listener_to_node(AP_GPS_Backend* new_listener, 
     return ret;
 }
 
-void AP_CANOpen::remove_gps_listener(AP_GPS_Backend* rem_listener)
+void AP_CANopen::remove_gps_listener(AP_GPS_Backend* rem_listener)
 {
     // Check for all listeners and compare pointers
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
@@ -838,7 +838,7 @@ void AP_CANOpen::remove_gps_listener(AP_GPS_Backend* rem_listener)
     }
 }
 
-AP_GPS::GPS_State *AP_CANOpen::find_gps_node(uint8_t node)
+AP_GPS::GPS_State *AP_CANopen::find_gps_node(uint8_t node)
 {
     // Check if such node is already defined
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_GPS_NODES; i++) {
@@ -859,7 +859,7 @@ AP_GPS::GPS_State *AP_CANOpen::find_gps_node(uint8_t node)
     return nullptr;
 }
 
-void AP_CANOpen::update_gps_state(uint8_t node)
+void AP_CANopen::update_gps_state(uint8_t node)
 {
     // Go through all listeners of specified node and call their's update methods
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_GPS_NODES; i++) {
@@ -873,7 +873,7 @@ void AP_CANOpen::update_gps_state(uint8_t node)
     }
 }
 
-uint8_t AP_CANOpen::register_baro_listener(AP_Baro_Backend* new_listener, uint8_t preferred_channel)
+uint8_t AP_CANopen::register_baro_listener(AP_Baro_Backend* new_listener, uint8_t preferred_channel)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
 
@@ -912,7 +912,7 @@ uint8_t AP_CANOpen::register_baro_listener(AP_Baro_Backend* new_listener, uint8_
     return ret;
 }
 
-uint8_t AP_CANOpen::register_baro_listener_to_node(AP_Baro_Backend* new_listener, uint8_t node)
+uint8_t AP_CANopen::register_baro_listener_to_node(AP_Baro_Backend* new_listener, uint8_t node)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
 
@@ -941,7 +941,7 @@ uint8_t AP_CANOpen::register_baro_listener_to_node(AP_Baro_Backend* new_listener
 }
 
 
-void AP_CANOpen::remove_baro_listener(AP_Baro_Backend* rem_listener)
+void AP_CANopen::remove_baro_listener(AP_Baro_Backend* rem_listener)
 {
     // Check for all listeners and compare pointers
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
@@ -957,7 +957,7 @@ void AP_CANOpen::remove_baro_listener(AP_Baro_Backend* rem_listener)
     }
 }
 
-AP_CANOpen::Baro_Info *AP_CANOpen::find_baro_node(uint8_t node)
+AP_CANopen::Baro_Info *AP_CANopen::find_baro_node(uint8_t node)
 {
     // Check if such node is already defined
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_BARO_NODES; i++) {
@@ -979,7 +979,7 @@ AP_CANOpen::Baro_Info *AP_CANOpen::find_baro_node(uint8_t node)
     return nullptr;
 }
 
-void AP_CANOpen::update_baro_state(uint8_t node)
+void AP_CANopen::update_baro_state(uint8_t node)
 {
     // Go through all listeners of specified node and call their's update methods
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_BARO_NODES; i++) {
@@ -996,7 +996,7 @@ void AP_CANOpen::update_baro_state(uint8_t node)
 /*
  * Find discovered not taken baro node with smallest node ID
  */
-uint8_t AP_CANOpen::find_smallest_free_baro_node()
+uint8_t AP_CANopen::find_smallest_free_baro_node()
 {
     uint8_t ret = UINT8_MAX;
 
@@ -1009,7 +1009,7 @@ uint8_t AP_CANOpen::find_smallest_free_baro_node()
     return ret;
 }
 
-uint8_t AP_CANOpen::register_mag_listener(AP_Compass_Backend* new_listener, uint8_t preferred_channel)
+uint8_t AP_CANopen::register_mag_listener(AP_Compass_Backend* new_listener, uint8_t preferred_channel)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
@@ -1047,7 +1047,7 @@ uint8_t AP_CANOpen::register_mag_listener(AP_Compass_Backend* new_listener, uint
     return ret;
 }
 
-uint8_t AP_CANOpen::register_mag_listener_to_node(AP_Compass_Backend* new_listener, uint8_t node)
+uint8_t AP_CANopen::register_mag_listener_to_node(AP_Compass_Backend* new_listener, uint8_t node)
 {
     uint8_t sel_place = UINT8_MAX, ret = 0;
 
@@ -1076,7 +1076,7 @@ uint8_t AP_CANOpen::register_mag_listener_to_node(AP_Compass_Backend* new_listen
     return ret;
 }
 
-void AP_CANOpen::remove_mag_listener(AP_Compass_Backend* rem_listener)
+void AP_CANopen::remove_mag_listener(AP_Compass_Backend* rem_listener)
 {
     // Check for all listeners and compare pointers
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_LISTENERS; i++) {
@@ -1092,14 +1092,14 @@ void AP_CANOpen::remove_mag_listener(AP_Compass_Backend* rem_listener)
     }
 }
 
-AP_CANOpen::Mag_Info *AP_CANOpen::find_mag_node(uint8_t node, uint8_t sensor_id)
+AP_CANopen::Mag_Info *AP_CANopen::find_mag_node(uint8_t node, uint8_t sensor_id)
 {
     // Check if such node is already defined
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_MAG_NODES; i++) {
         if (_mag_nodes[i] == node) {
             if (_mag_node_max_sensorid_count[i] < sensor_id) {
                 _mag_node_max_sensorid_count[i] = sensor_id;
-                debug_canopen(2, "AP_CANOpen: Compass: found sensor id %d on node %d\n\r", (int)(sensor_id), (int)(node));
+                debug_canopen(2, "AP_CANopen: Compass: found sensor id %d on node %d\n\r", (int)(sensor_id), (int)(node));
             }
             return &_mag_node_state[i];
         }
@@ -1110,7 +1110,7 @@ AP_CANOpen::Mag_Info *AP_CANOpen::find_mag_node(uint8_t node, uint8_t sensor_id)
         if (_mag_nodes[i] == UINT8_MAX) {
             _mag_nodes[i] = node;
             _mag_node_max_sensorid_count[i] = (sensor_id ? sensor_id : 1);
-            debug_canopen(2, "AP_CANOpen: Compass: register sensor id %d on node %d\n\r", (int)(sensor_id), (int)(node));  
+            debug_canopen(2, "AP_CANopen: Compass: register sensor id %d on node %d\n\r", (int)(sensor_id), (int)(node));
             return &_mag_node_state[i];
         }
     }
@@ -1122,10 +1122,10 @@ AP_CANOpen::Mag_Info *AP_CANOpen::find_mag_node(uint8_t node, uint8_t sensor_id)
 /*
  * Find discovered mag node with smallest node ID and which is taken N times,
  * where N is less than its maximum sensor id.
- * This allows multiple AP_Compass_CANOpen instanses listening multiple compasses
+ * This allows multiple AP_Compass_CANopen instanses listening multiple compasses
  * that are on one node.
  */
-uint8_t AP_CANOpen::find_smallest_free_mag_node()
+uint8_t AP_CANopen::find_smallest_free_mag_node()
 {
     uint8_t ret = UINT8_MAX;
 
@@ -1138,7 +1138,7 @@ uint8_t AP_CANOpen::find_smallest_free_mag_node()
     return ret;
 }
 
-void AP_CANOpen::update_mag_state(uint8_t node, uint8_t sensor_id)
+void AP_CANopen::update_mag_state(uint8_t node, uint8_t sensor_id)
 {
     // Go through all listeners of specified node and call their's update methods
     for (uint8_t i = 0; i < AP_CANOPEN_MAX_MAG_NODES; i++) {
@@ -1157,7 +1157,7 @@ void AP_CANOpen::update_mag_state(uint8_t node, uint8_t sensor_id)
                             }
                         }
                         if (!already_taken) {
-                            debug_canopen(2, "AP_CANOpen: Compass: sensor_id updated to %d for listener %d\n", sensor_id, j);
+                            debug_canopen(2, "AP_CANopen: Compass: sensor_id updated to %d for listener %d\n", sensor_id, j);
                             _mag_listener_sensor_ids[j] = sensor_id;
                         }
                     }
@@ -1174,11 +1174,11 @@ void AP_CANOpen::update_mag_state(uint8_t node, uint8_t sensor_id)
     }
 }
 
-AP_CANOpen* AP_CANOpen::get_CANOpen(AP_HAL::CANManager *mgr)
+AP_CANopen* AP_CANopen::get_CANopen(AP_HAL::CANManager *mgr)
 {
     CANProtocol *p = mgr->get_CANProtocol();
-    if (typeid(*p) == typeid(AP_CANOpen*))
-        return dynamic_cast<AP_CANOpen*>(p);
+    if (typeid(*p) == typeid(AP_CANopen*))
+        return dynamic_cast<AP_CANopen*>(p);
     return nullptr;
 }
 

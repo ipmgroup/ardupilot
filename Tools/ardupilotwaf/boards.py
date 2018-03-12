@@ -624,7 +624,7 @@ class canzero(linux):
             CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_LINUX_CANZERO',
         )
         env.AP_LIBRARIES += (
-           'AP_CANOpen',           
+           'AP_CANopen',           
         )
 
 class aero(linux):

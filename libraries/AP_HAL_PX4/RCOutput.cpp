@@ -18,7 +18,7 @@
 #if HAL_WITH_UAVCAN
 #include <AP_BoardConfig/AP_BoardConfig_CAN.h>
 #include <AP_UAVCAN/AP_UAVCAN.h>
-#include <AP_CANOpen/AP_CANOpen.h>
+#include <AP_CANopen/AP_CANopen.h>
 #endif
 
 extern const AP_HAL::HAL& hal;
@@ -548,7 +548,7 @@ void PX4RCOutput::_send_outputs(void)
                         }
                     }
                     
-                    AP_CANOpen *ap_uc = hal.can_mgr[i]->get_CANopen();
+                    AP_CANopen *ap_uc = hal.can_mgr[i]->get_CANopen();
                     if (ap_uc != nullptr)
                     {
                         if (ap_uc->rc_out_sem_take())

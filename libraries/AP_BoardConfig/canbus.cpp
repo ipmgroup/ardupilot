@@ -20,7 +20,7 @@
 #if HAL_WITH_UAVCAN
 #include "AP_BoardConfig_CAN.h"
 #include <AP_UAVCAN/AP_UAVCAN.h>
-#include <AP_CANOpen/AP_CANOpen.h>
+#include "../AP_CANopen/AP_CANopen.h"
 
 // table of user settable CAN bus parameters
 const AP_Param::GroupInfo AP_BoardConfig_CAN::CAN_if_var_info::var_info[] = {

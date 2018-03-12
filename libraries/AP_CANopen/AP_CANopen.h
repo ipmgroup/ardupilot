@@ -41,10 +41,10 @@
 #define AP_CANOPEN_HW_VERS_MAJOR 1
 #define AP_CANOPEN_HW_VERS_MINOR 0
 
-class AP_CANOpen: public AP_HAL::CANProtocol {
+class AP_CANopen: public AP_HAL::CANProtocol {
 public:
-    AP_CANOpen();
-    ~AP_CANOpen();
+    AP_CANopen();
+    ~AP_CANopen();
 
     static const struct AP_Param::GroupInfo var_info[];
 
@@ -203,7 +203,7 @@ private:
         }
     };
 
-    uavcan::HeapBasedPoolAllocator<CANOPEN_NODE_POOL_BLOCK_SIZE, AP_CANOpen::RaiiSynchronizer> _node_allocator;
+    uavcan::HeapBasedPoolAllocator<CANOPEN_NODE_POOL_BLOCK_SIZE, AP_CANopen::RaiiSynchronizer> _node_allocator;
 
     AP_Int8 _canopen_node;
     AP_Int32 _servo_bm;
@@ -223,7 +223,7 @@ public:
     void rco_write(uint16_t pulse_len, uint8_t ch);
 
 
-    static AP_CANOpen* get_CANOpen(AP_HAL::CANManager *mgr);
+    static AP_CANopen* get_CANopen(AP_HAL::CANManager *mgr);
 
 
 };
