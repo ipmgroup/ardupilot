@@ -9,7 +9,7 @@
 #endif
 #if HAL_WITH_UAVCAN
 #define UAVCAN_PROTOCOL_ENABLE   1
-#define CANOPEN_PROTOCOL_ENABLE  2
+#define CANOPEN_PROTOCOL_ENABLE  3
 
 class AP_BoardConfig_CAN {
 public:

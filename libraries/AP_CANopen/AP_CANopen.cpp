@@ -373,12 +373,12 @@ bool AP_CANopen::try_init(void)
 
             auto *node = get_node();
 
-            //generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
-
-            uint8_t data[8] = {0x80};
-            //uint8_t data = 0x80;
-            send_raw_packet(0x05, data, 1);
-            //send_raw_packet(0x05, &data, 1);
+//            //generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
+//
+//            uint8_t data[8] = {0x80};
+//            //uint8_t data = 0x80;
+//            send_raw_packet(0x05, data, 1);
+//            //send_raw_packet(0x05, &data, 1);
 
             if (node != nullptr) {
                 printf ("1\n");
@@ -627,6 +627,9 @@ void AP_CANopen::do_cyclic(void)
 			// mark as transmitted
 			_rco_conf[i].active = false;
 		}
+
+        uint8_t data[8] = {0x00};
+        send_raw_packet(0x80, data, 1);
 
 		rc_out_sem_give();
 	}
