@@ -229,7 +229,7 @@ static void magnetic_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::
 {   magnetic_cb(msg, 1); }
 static void (*magnetic_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg)
         = { magnetic_cb0, magnetic_cb1 };
-        
+
 static void magnetic_cb_2(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
@@ -373,12 +373,12 @@ bool AP_CANopen::try_init(void)
 
             auto *node = get_node();
 
-//            //generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
-//
-//            uint8_t data[8] = {0x80};
-//            //uint8_t data = 0x80;
-//            send_raw_packet(0x05, data, 1);
-//            //send_raw_packet(0x05, &data, 1);
+            //generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
+
+            //uint8_t data[8] = {0x80};
+            //uint8_t data = 0x80;
+            //send_raw_packet(0x05, data, 1);
+            //send_raw_packet(0x05, &data, 1);
 
             if (node != nullptr) {
                 printf ("1\n");
@@ -432,7 +432,7 @@ bool AP_CANopen::try_init(void)
                         debug_canopen(1, "CANopen Compass subscriber start problem\n\r");
                         return false;
                     }
-                    
+
                     uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2> *magnetic2;
                     magnetic2 = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2>(*node);
                     const int magnetic_start_res_2 = magnetic2->start(magnetic_cb_2_arr[_canopen_i]);
@@ -628,8 +628,8 @@ void AP_CANopen::do_cyclic(void)
 			_rco_conf[i].active = false;
 		}
 
-        uint8_t data[8] = {0x00};
-        send_raw_packet(0x80, data, 1);
+        uint8_t data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+        send_raw_packet(0x80, data, 8);
 
 		rc_out_sem_give();
 	}
@@ -643,11 +643,12 @@ void AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
 
     uavcan::CanFrame frm((id), data, len); //& uavcan::CanFrame::MaskStdID
     uavcan::MonotonicDuration dur;
-    dur.fromMSec(10);
+    dur = dur.fromMSec(100);
     uavcan::MonotonicTime ddt = SystemClock::instance().getMonotonic() + dur;
-    printf("CANOPEN CAN Frame %d\n\r", frm);
+    //printf("%ul %ul\n", dur.toMSec(), ddt.toMSec());
+    //printf("CANOPEN CAN Frame %d\n\r", frm);
     //get_can_driver()->getIface(1)->send(frm, ddt, 0);
-    get_can_driver()->getIface(0)->send(frm, ddt, 1);
+    get_can_driver()->getIface(0)->send(frm, ddt, 0);
     //get_can_driver()->getIface(0)->CAN::send( uavcan::CanFrame& frame, uavcan::MonotonicTime tx_deadline, uavcan::CanIOFlags flags)
 
 }
@@ -1148,10 +1149,10 @@ void AP_CANopen::update_mag_state(uint8_t node, uint8_t sensor_id)
         if (_mag_nodes[i] == node) {
             for (uint8_t j = 0; j < AP_CANOPEN_MAX_LISTENERS; j++) {
                 if (_mag_listener_to_node[j] == i) {
-                    
+
                     /*If the current listener has default sensor_id,
                       while our sensor_id is not default, we have
-                      to assign our sensor_id to this listener*/ 
+                      to assign our sensor_id to this listener*/
                     if ((_mag_listener_sensor_ids[j] == 0) && (sensor_id != 0)) {
                         bool already_taken = false;
                         for (uint8_t k = 0; k < AP_CANOPEN_MAX_LISTENERS; k++) {
@@ -1164,7 +1165,7 @@ void AP_CANopen::update_mag_state(uint8_t node, uint8_t sensor_id)
                             _mag_listener_sensor_ids[j] = sensor_id;
                         }
                     }
-                    
+
                     /*If the current listener has the sensor_id that we have,
                       or our sensor_id is default, ask the listener to handle the measurements
                       (the default one is used for the nodes that have only one compass*/

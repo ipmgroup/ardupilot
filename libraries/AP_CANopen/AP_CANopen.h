@@ -8,6 +8,7 @@
 #include <uavcan/uavcan.hpp>
 
 #include <AP_HAL/CAN.h>
+#include <AP_HAL_Linux/CAN.h>
 #include <AP_HAL/Semaphores.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_Param/AP_Param.h>

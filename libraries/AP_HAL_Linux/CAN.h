@@ -94,6 +94,16 @@ public:
 
     uint64_t getErrorCount() const override;
 
+    static uavcan::CanFrame makeUavcanFrame(const can_frame& sockcan_frame);
+    static can_frame makeSocketCanFrame(const uavcan::CanFrame& uavcan_frame);
+
+    void _pollWrite();
+
+    void _pollRead();
+
+    int _write(const uavcan::CanFrame& frame) const;
+
+    int _read(uavcan::CanFrame& frame, uavcan::UtcTime& ts_utc, bool& loopback) const;
 
 private:
     struct TxItem
@@ -135,13 +145,13 @@ private:
         { }
     };
 
-    void _pollWrite();
-
-    void _pollRead();
-
-    int _write(const uavcan::CanFrame& frame) const;
-
-    int _read(uavcan::CanFrame& frame, uavcan::UtcTime& ts_utc, bool& loopback) const;
+//    void _pollWrite();
+//
+//    void _pollRead();
+//
+//    int _write(const uavcan::CanFrame& frame) const;
+//
+//    int _read(uavcan::CanFrame& frame, uavcan::UtcTime& ts_utc, bool& loopback) const;
 
     void _incrementNumFramesInSocketTxQueue();
 

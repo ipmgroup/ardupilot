@@ -105,7 +105,7 @@ void AP_BoardConfig_CAN::setup_canbus(void)
 
         if (drv_num != 0 && drv_num <= MAX_NUMBER_OF_CAN_DRIVERS) {
             if (hal.can_mgr[drv_num - 1] == nullptr) {
-                
+
                 #if CONFIG_HAL_BOARD == HAL_BOARD_PX4 || CONFIG_HAL_BOARD == HAL_BOARD_VRBRAIN
                     const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new PX4::PX4CANManager;
                 #elif CONFIG_HAL_BOARD == HAL_BOARD_LINUX
@@ -113,7 +113,7 @@ void AP_BoardConfig_CAN::setup_canbus(void)
                 #elif CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
                     const_cast <AP_HAL::HAL&> (hal).can_mgr[drv_num - 1] = new ChibiOS::CANManager;
                 #endif
-                
+
             }
 
             if (hal.can_mgr[drv_num - 1] != nullptr) {
@@ -187,4 +187,3 @@ void AP_BoardConfig_CAN::setup_canbus(void)
     }
 }
 #endif
-

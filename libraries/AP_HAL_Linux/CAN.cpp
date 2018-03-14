@@ -50,7 +50,7 @@ uavcan::MonotonicTime getMonotonic()
     return uavcan::MonotonicTime::fromUSec(AP_HAL::micros64());
 }
 
-static can_frame makeSocketCanFrame(const uavcan::CanFrame& uavcan_frame)
+can_frame CAN::makeSocketCanFrame(const uavcan::CanFrame& uavcan_frame)
 {
     can_frame sockcan_frame { uavcan_frame.id& uavcan::CanFrame::MaskExtID, uavcan_frame.dlc, { } };
     std::copy(uavcan_frame.data, uavcan_frame.data + uavcan_frame.dlc, sockcan_frame.data);
@@ -66,7 +66,7 @@ static can_frame makeSocketCanFrame(const uavcan::CanFrame& uavcan_frame)
     return sockcan_frame;
 }
 
-static uavcan::CanFrame makeUavcanFrame(const can_frame& sockcan_frame)
+uavcan::CanFrame CAN::makeUavcanFrame(const can_frame& sockcan_frame)
 {
     uavcan::CanFrame uavcan_frame(sockcan_frame.can_id & CAN_EFF_MASK, sockcan_frame.data, sockcan_frame.can_dlc);
     if (sockcan_frame.can_id & CAN_EFF_FLAG) {
@@ -150,6 +150,7 @@ int CAN::openSocket(const std::string& iface_name)
         errno = ENAMETOOLONG;
         return -1;
     }
+
     std::strncpy(ifr.ifr_name, iface_name.c_str(), iface_name.length());
     if (ioctl(s, SIOCGIFINDEX, &ifr) < 0 || ifr.ifr_ifindex < 0) {
         return -1;
@@ -295,6 +296,7 @@ void CAN::_pollWrite()
     while (hasReadyTx()) {
         const TxItem tx = _tx_queue.top();
 
+        printf("%llu %llu\n", tx.deadline.toMSec(), getMonotonic().toMSec());
         if (tx.deadline >= getMonotonic()) {
             const int res = _write(tx.frame);
             if (res == 1) {                   // Transmitted successfully
