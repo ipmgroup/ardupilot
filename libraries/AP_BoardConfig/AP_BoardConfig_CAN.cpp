@@ -94,6 +94,7 @@ void AP_BoardConfig_CAN::init()
     }
 
     setup_canbus();
+    _var_info_can_protocol[0]._can_protocol->node_discovery();
 }
 
 void AP_BoardConfig_CAN::setup_canbus(void)

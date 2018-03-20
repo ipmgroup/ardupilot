@@ -296,7 +296,7 @@ void CAN::_pollWrite()
     while (hasReadyTx()) {
         const TxItem tx = _tx_queue.top();
 
-        printf("%llu %llu\n", tx.deadline.toMSec(), getMonotonic().toMSec());
+        //printf("%llu %llu\n", tx.deadline.toMSec(), getMonotonic().toMSec());
         if (tx.deadline >= getMonotonic()) {
             const int res = _write(tx.frame);
             if (res == 1) {                   // Transmitted successfully
@@ -504,9 +504,9 @@ void CANManager::set_CANProtocol(AP_HAL::CANProtocol *can_protocol)
 
 CAN* CANManager::getIface(uint8_t iface_index)
 {
-    if (iface_index != 0)
+//    if (iface_index != 0)
 //        printf ("________________ ");
-    iface_index = 0;
+//    iface_index = 0;
 //    printf ("!!!!!!!!!! %d, size:  _ifaces.size() %d, %p\n", iface_index,  _ifaces.size(), (iface_index >= _ifaces.size()) ? nullptr : _ifaces[iface_index].get());
     return (iface_index >= _ifaces.size()) ? nullptr : _ifaces[iface_index].get();
 }

@@ -95,8 +95,9 @@ public:
     CANProtocol(): _parent_can_mgr(nullptr) {
     };
 
-    virtual void do_cyclic(void) = 0;
-    virtual bool try_init(void)  = 0;
+    virtual void do_cyclic(void)     = 0;
+    virtual bool try_init(void)      = 0;
+    virtual int node_discovery(void) = 0;
 
     void set_parent_can_mgr(AP_HAL::CANManager* parent_can_mgr)
     {

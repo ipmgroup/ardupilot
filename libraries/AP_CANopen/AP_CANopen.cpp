@@ -12,7 +12,8 @@
 
 #include <typeinfo>
 
-#include "../AP_CANopen/AP_CANopen.h"
+//#include "../AP_CANopen/AP_CANopen.h"
+#include "AP_CANopen.h"
 #include <GCS_MAVLink/GCS.h>
 
 #include <AP_BoardConfig/AP_BoardConfig.h>
@@ -371,113 +372,105 @@ bool AP_CANopen::try_init(void)
                 return false;
             }
 
-            auto *node = get_node();
+            //auto *node = get_node();
 
-            //generate_frame<CAN_SYNC_DATA_TYPE>(&frame_output, CAN_SYNC_ID, 0, 0, CAN_SYNC_DATA, 1);
-
-            //uint8_t data[8] = {0x80};
-            //uint8_t data = 0x80;
-            //send_raw_packet(0x05, data, 1);
-            //send_raw_packet(0x05, &data, 1);
-
-            if (node != nullptr) {
-                printf ("1\n");
-                if (!node->isStarted()) {
-                    uavcan::NodeID self_node_id(_canopen_node);
-                    node->setNodeID(self_node_id);
-
-                    char ndname[20];
-                    snprintf(ndname, sizeof(ndname), "org.ardupilot:%u", _canopen_i);
-
-                    uavcan::NodeStatusProvider::NodeName name(ndname);
-                    node->setName(name);
-
-                    uavcan::protocol::SoftwareVersion sw_version; // Standard type uavcan.protocol.SoftwareVersion
-                    sw_version.major = AP_CANOPEN_SW_VERS_MAJOR;
-                    sw_version.minor = AP_CANOPEN_SW_VERS_MINOR;
-                    node->setSoftwareVersion(sw_version);
-
-                    uavcan::protocol::HardwareVersion hw_version; // Standard type uavcan.protocol.HardwareVersion
-
-                    hw_version.major = AP_CANOPEN_HW_VERS_MAJOR;
-                    hw_version.minor = AP_CANOPEN_HW_VERS_MINOR;
-                    node->setHardwareVersion(hw_version);
-
-                    const int node_start_res = node->start();
-                    if (node_start_res < 0) {
-                        debug_canopen(1, "CANopen: node start problem\n\r");
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::gnss::Fix> *gnss_fix;
-                    gnss_fix = new uavcan::Subscriber<uavcan::equipment::gnss::Fix>(*node);
-
-                    const int gnss_fix_start_res = gnss_fix->start(gnss_fix_cb_arr[_canopen_i]);
-                    if (gnss_fix_start_res < 0) {
-                        debug_canopen(1, "CANopen GNSS subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary> *gnss_aux;
-                    gnss_aux = new uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary>(*node);
-                    const int gnss_aux_start_res = gnss_aux->start(gnss_aux_cb_arr[_canopen_i]);
-                    if (gnss_aux_start_res < 0) {
-                        debug_canopen(1, "CANopen GNSS Aux subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength> *magnetic;
-                    magnetic = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength>(*node);
-                    const int magnetic_start_res = magnetic->start(magnetic_cb_arr[_canopen_i]);
-                    if (magnetic_start_res < 0) {
-                        debug_canopen(1, "CANopen Compass subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2> *magnetic2;
-                    magnetic2 = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2>(*node);
-                    const int magnetic_start_res_2 = magnetic2->start(magnetic_cb_2_arr[_canopen_i]);
-                    if (magnetic_start_res_2 < 0) {
-                        debug_canopen(1, "CANopen Compass for multiple mags subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure> *air_data_sp;
-                    air_data_sp = new uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure>(*node);
-                    const int air_data_sp_start_res = air_data_sp->start(air_data_sp_cb_arr[_canopen_i]);
-                    if (air_data_sp_start_res < 0) {
-                        debug_canopen(1, "CANopen Baro subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature> *air_data_st;
-                    air_data_st = new uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature>(*node);
-                    const int air_data_st_start_res = air_data_st->start(air_data_st_cb_arr[_canopen_i]);
-                    if (air_data_st_start_res < 0) {
-                        debug_canopen(1, "CANopen Temperature subscriber start problem\n\r");
-                        return false;
-                    }
-
-                    act_out_array[_canopen_i] = new uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>(*node);
-                    act_out_array[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
-                    act_out_array[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
-
-                    esc_raw[_canopen_i] = new uavcan::Publisher<uavcan::equipment::esc::RawCommand>(*node);
-                    esc_raw[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
-                    esc_raw[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
-
-                    /*
-                     * Informing other nodes that we're ready to work.
-                     * Default mode is INITIALIZING.
-                     */
-                    node->setModeOperational();
-
-                    _initialized = true;
-
-                    debug_canopen(1, "CANopen: init done\n\r");
-
-                    return true;
-                }
-            }
+            // if (node != nullptr) {
+            //     if (!node->isStarted()) {
+            //         uavcan::NodeID self_node_id(_canopen_node);
+            //         node->setNodeID(self_node_id);
+            //
+            //         char ndname[20];
+            //         snprintf(ndname, sizeof(ndname), "org.ardupilot:%u", _canopen_i);
+            //
+            //         uavcan::NodeStatusProvider::NodeName name(ndname);
+            //         node->setName(name);
+            //
+            //         uavcan::protocol::SoftwareVersion sw_version; // Standard type uavcan.protocol.SoftwareVersion
+            //         sw_version.major = AP_CANOPEN_SW_VERS_MAJOR;
+            //         sw_version.minor = AP_CANOPEN_SW_VERS_MINOR;
+            //         node->setSoftwareVersion(sw_version);
+            //
+            //         uavcan::protocol::HardwareVersion hw_version; // Standard type uavcan.protocol.HardwareVersion
+            //
+            //         hw_version.major = AP_CANOPEN_HW_VERS_MAJOR;
+            //         hw_version.minor = AP_CANOPEN_HW_VERS_MINOR;
+            //         node->setHardwareVersion(hw_version);
+            //
+            //         const int node_start_res = node->start();
+            //         if (node_start_res < 0) {
+            //             debug_canopen(1, "CANopen: node start problem\n\r");
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::gnss::Fix> *gnss_fix;
+            //         gnss_fix = new uavcan::Subscriber<uavcan::equipment::gnss::Fix>(*node);
+            //
+            //         const int gnss_fix_start_res = gnss_fix->start(gnss_fix_cb_arr[_canopen_i]);
+            //         if (gnss_fix_start_res < 0) {
+            //             debug_canopen(1, "CANopen GNSS subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary> *gnss_aux;
+            //         gnss_aux = new uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary>(*node);
+            //         const int gnss_aux_start_res = gnss_aux->start(gnss_aux_cb_arr[_canopen_i]);
+            //         if (gnss_aux_start_res < 0) {
+            //             debug_canopen(1, "CANopen GNSS Aux subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength> *magnetic;
+            //         magnetic = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength>(*node);
+            //         const int magnetic_start_res = magnetic->start(magnetic_cb_arr[_canopen_i]);
+            //         if (magnetic_start_res < 0) {
+            //             debug_canopen(1, "CANopen Compass subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2> *magnetic2;
+            //         magnetic2 = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2>(*node);
+            //         const int magnetic_start_res_2 = magnetic2->start(magnetic_cb_2_arr[_canopen_i]);
+            //         if (magnetic_start_res_2 < 0) {
+            //             debug_canopen(1, "CANopen Compass for multiple mags subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure> *air_data_sp;
+            //         air_data_sp = new uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure>(*node);
+            //         const int air_data_sp_start_res = air_data_sp->start(air_data_sp_cb_arr[_canopen_i]);
+            //         if (air_data_sp_start_res < 0) {
+            //             debug_canopen(1, "CANopen Baro subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature> *air_data_st;
+            //         air_data_st = new uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature>(*node);
+            //         const int air_data_st_start_res = air_data_st->start(air_data_st_cb_arr[_canopen_i]);
+            //         if (air_data_st_start_res < 0) {
+            //             debug_canopen(1, "CANopen Temperature subscriber start problem\n\r");
+            //             return false;
+            //         }
+            //
+            //         act_out_array[_canopen_i] = new uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>(*node);
+            //         act_out_array[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
+            //         act_out_array[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
+            //
+            //         esc_raw[_canopen_i] = new uavcan::Publisher<uavcan::equipment::esc::RawCommand>(*node);
+            //         esc_raw[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
+            //         esc_raw[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
+            //
+            //         /*
+            //          * Informing other nodes that we're ready to work.
+            //          * Default mode is INITIALIZING.
+            //          */
+            //         node->setModeOperational();
+            //
+            //         _initialized = true;
+            //
+            //         debug_canopen(1, "CANopen: init done\n\r");
+            //
+            //         return true;
+            //     }
+            // }
         }
 
         if (_initialized) {
@@ -486,6 +479,30 @@ bool AP_CANopen::try_init(void)
     }
 
     return false;
+}
+
+int AP_CANopen::node_discovery(){
+	std::map<uint8_t, uint8_t> nodes;
+
+	uint8_t data[8] = {0x00};
+	send_raw_packet(0x80, data, 1);
+    hal.scheduler->delay(100);
+
+    uavcan::MonotonicTime te = SystemClock::instance().getMonotonic() + uavcan::MonotonicDuration::fromMSec(100); // Time when the scan should end.
+
+    uavcan::CanFrame frm;
+    while(recv_raw_packet(frm) && te > SystemClock::instance().getMonotonic()){
+    	nodes[frm.id & 0x7F] = frm.id & 0x7F;
+    }
+
+    int i = 0;
+    for(std::map<uint8_t, uint8_t>::iterator it = nodes.begin(); it != nodes.end() && i < CANOPEN_RCO_NUMBER; it++){
+    	_rco_conf[i].id = it->first;
+    	printf("%03d %03X\n", i, it->first);
+    	i++;
+    }
+
+	return i;
 }
 
 bool AP_CANopen::rc_out_sem_take()
@@ -628,9 +645,6 @@ void AP_CANopen::do_cyclic(void)
 			_rco_conf[i].active = false;
 		}
 
-        uint8_t data[8] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
-        send_raw_packet(0x80, data, 8);
-
 		rc_out_sem_give();
 	}
 }
@@ -646,43 +660,26 @@ void AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
     dur = dur.fromMSec(100);
     uavcan::MonotonicTime ddt = SystemClock::instance().getMonotonic() + dur;
     //printf("%ul %ul\n", dur.toMSec(), ddt.toMSec());
-    //printf("CANOPEN CAN Frame %d\n\r", frm);
-    //get_can_driver()->getIface(1)->send(frm, ddt, 0);
     get_can_driver()->getIface(0)->send(frm, ddt, 0);
-    //get_can_driver()->getIface(0)->CAN::send( uavcan::CanFrame& frame, uavcan::MonotonicTime tx_deadline, uavcan::CanIOFlags flags)
-
 }
 
-//template<typename T> void AP_CANopen::generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta)
-//{
-//	frame->can_id = base_id | node_id;
-//
-//	if(!ignore_meta){
-//		frame->can_dlc = sizeof(meta) + sizeof(value);
-//	}else{
-//		frame->can_dlc = sizeof(value);
-//	}
-//
-//	int pos = 0;
-//	if(!ignore_meta){
-//		meta |= CAN_SET_MSG_LEN(sizeof(value));
-//		for(; pos < sizeof(meta); pos++){
-//			frame->data[pos] = (meta >> (8*(sizeof(meta)-1-pos))) & 0xFF;
-//		}
-//	}
-//
-//	for(int i = pos; i < frame->can_dlc; i++){
-//		frame->data[i] = (value >> (8*(i-pos))) & 0xFF;
-//	}
-//
-//	// *** Send a complete 8 byte frame.
-//	for(int i = frame->can_dlc; i < 8; i++){
-//		frame->data[i] = 0x00;
-//	}
-//
-//	frame->can_dlc = 8;
-//	// ***
-//}
+int AP_CANopen::recv_raw_packet(uavcan::CanFrame& recv_frame)
+{
+	int recv = 0;
+
+    uavcan::MonotonicTime ddt = SystemClock::instance().getMonotonic();
+    uavcan::UtcTime utc;
+    uavcan::CanIOFlags flags = 0;
+    if (recv = get_can_driver()->getIface(0)->receive(recv_frame, ddt, utc, flags)) {
+//    	printf("received %03X: ", frm.id);
+//    	for(int i = 0; i < frm.dlc; i++){
+//    		printf("%02X ", frm.data[i]);
+//    	}
+//    	printf("\n");
+    }
+
+    return recv;
+}
 
 uavcan::ISystemClock & AP_CANopen::get_system_clock()
 {

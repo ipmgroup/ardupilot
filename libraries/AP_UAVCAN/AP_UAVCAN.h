@@ -260,6 +260,7 @@ private:
 public:
     void do_cyclic(void);
     bool try_init(void);
+    int node_discovery(void) { return 0; };
 
     void rco_set_safety_pwm(uint32_t chmask, uint16_t pulse_len);
     void rco_set_failsafe_pwm(uint32_t chmask, uint16_t pulse_len);

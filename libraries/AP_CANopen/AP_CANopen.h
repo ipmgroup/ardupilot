@@ -133,7 +133,10 @@ private:
     AP_Compass_Backend* _mag_listeners[AP_CANOPEN_MAX_LISTENERS];
     uint8_t _mag_listener_sensor_ids[AP_CANOPEN_MAX_LISTENERS];
 
+    // ------------------------- RCO
+
     struct {
+    	uint8_t id;
         uint16_t pulse;
         uint16_t safety_pulse;
         uint16_t failsafe_pulse;
@@ -147,6 +150,7 @@ private:
     AP_HAL::Semaphore *_rc_out_sem;
 
     void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
+    int recv_raw_packet(uavcan::CanFrame& recv_frame);
 
     //template<typename T> void generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta = 0);
 
@@ -215,6 +219,7 @@ private:
 public:
     void do_cyclic(void);
     bool try_init(void);
+    int node_discovery(void);
 
     void rco_set_safety_pwm(uint32_t chmask, uint16_t pulse_len);
     void rco_set_failsafe_pwm(uint32_t chmask, uint16_t pulse_len);
