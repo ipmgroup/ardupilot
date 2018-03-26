@@ -143,6 +143,8 @@ private:
         bool active;
     } _rco_conf[CANOPEN_RCO_NUMBER];
 
+    uint8_t _rco_node_cnt;
+
     bool _initialized;
     uint8_t _rco_armed;
     uint8_t _rco_safety;
@@ -151,6 +153,8 @@ private:
 
     void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
     int recv_raw_packet(uavcan::CanFrame& recv_frame);
+    void enable_motors();
+    int32_t ppm_to_rpm(int ppm);
 
     //template<typename T> void generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta = 0);
 
@@ -213,6 +217,9 @@ private:
     AP_Int8 _canopen_node;
     AP_Int32 _servo_bm;
     AP_Int32 _esc_bm;
+    AP_Int8 _ctl;
+    AP_Int32 _rpm_max;
+    AP_Int32 _rpmps;
 
     uint8_t _canopen_i;
 

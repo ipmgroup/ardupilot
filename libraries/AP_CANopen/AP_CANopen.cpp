@@ -51,21 +51,42 @@ const AP_Param::GroupInfo AP_CANopen::var_info[] = {
     // @Description: CANopen node should be set implicitly
     // @Range: 1 250
     // @User: Advanced
-    AP_GROUPINFO("NODs", 1, AP_CANopen, _canopen_node, 1),
+    AP_GROUPINFO("NOD", 1, AP_CANopen, _canopen_node, 0),
 
     // @Param: SRV_BM
     // @DisplayName: RC Out channels to be transmitted as servo over CANopen
     // @Description: Bitmask with one set for channel to be transmitted as a servo command over CANopen
     // @Bitmask: 0: Servo 1, 1: Servo 2, 2: Servo 3, 3: Servo 4, 4: Servo 5, 5: Servo 6, 6: Servo 7, 7: Servo 8, 8: Servo 9, 9: Servo 10, 10: Servo 11, 11: Servo 12, 12: Servo 13, 13: Servo 14, 14: Servo 15
     // @User: Advanced
-    AP_GROUPINFO("SRV_Bs", 2, AP_CANopen, _servo_bm, 255),
+    AP_GROUPINFO("SRV_B", 2, AP_CANopen, _servo_bm, 255),
 
     // @Param: ESC_BM
     // @DisplayName: RC Out channels to be transmitted as ESC over CANopen
     // @Description: Bitmask with one set for channel to be transmitted as a ESC command over CANopen
     // @Bitmask: 0: ESC 1, 1: ESC 2, 2: ESC 3, 3: ESC 4, 4: ESC 5, 5: ESC 6, 6: ESC 7, 7: ESC 8, 8: ESC 9, 9: ESC 10, 10: ESC 11, 11: ESC 12, 12: ESC 13, 13: ESC 14, 14: ESC 15, 15: ESC 16
     // @User: Advanced
-    AP_GROUPINFO("ESC_Bs", 3, AP_CANopen, _esc_bm, 255),
+    AP_GROUPINFO("ESC_B", 3, AP_CANopen, _esc_bm, 255),
+
+    // @Param: CTL
+    // @DisplayName: Controlword
+    // @Description: Controlword that is sent to motor controllers to turn them on.
+    // @Range: 1 63
+    // @User: Advanced
+	AP_GROUPINFO("CTL", 4, AP_CANopen, _ctl, 3),
+
+    // @Param: RPM
+    // @DisplayName: Full scale RPM
+    // @Description: Sets the RPM value that corresponds to the maximum valid PPM value.
+    // @Range: 0 15000
+    // @User: Advanced
+	AP_GROUPINFO("RPM_M", 5, AP_CANopen, _rpm_max, 12000),
+
+    // @Param: RPMPS
+    // @DisplayName: Acceleration of the motors.
+    // @Description: Sets the rate at which the controllers will attempt to change the RPM.
+    // @Range: 1 82000
+    // @User: Advanced
+	AP_GROUPINFO("RPMPS", 6, AP_CANopen, _rpmps, 20000),
 
     AP_GROUPEND
 };
@@ -498,11 +519,26 @@ int AP_CANopen::node_discovery(){
     int i = 0;
     for(std::map<uint8_t, uint8_t>::iterator it = nodes.begin(); it != nodes.end() && i < CANOPEN_RCO_NUMBER; it++){
     	_rco_conf[i].id = it->first;
-    	printf("%03d %03X\n", i, it->first);
+    	//printf("%03d %03X\n", i, it->first);
     	i++;
     }
 
+    _rco_node_cnt = i;
+
+    //printf("Nodes discovered: %d\n", _rco_node_cnt);
+
+    enable_motors();
+
 	return i;
+}
+
+void AP_CANopen::enable_motors(){
+	uint16_t data = _ctl;
+	for(int i = 0; i < _rco_node_cnt; i++){
+		//printf("Activating node %d\n", _rco_conf[i].id);
+		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&data, 2);
+		hal.scheduler->delay(1);
+	}
 }
 
 bool AP_CANopen::rc_out_sem_take()
@@ -521,56 +557,59 @@ void AP_CANopen::rc_out_sem_give()
 
 void AP_CANopen::rc_out_send_servos(void)
 {
-    uint8_t starting_servo = 0;
-    bool repeat_send;
-
-    do {
-        repeat_send = false;
-        uavcan::equipment::actuator::ArrayCommand msg;
-
-        uint8_t i;
-        // CANopen can hold maximum of 15 commands in one frame
-        for (i = 0; starting_servo < CANOPEN_RCO_NUMBER && i < 15; starting_servo++) {
-            uavcan::equipment::actuator::Command cmd;
-
-            /*
-             * Servo output uses a range of 1000-2000 PWM for scaling.
-             * This converts output PWM from [1000:2000] range to [-1:1] range that
-             * is passed to servo as unitless type via CANopen.
-             * This approach allows for MIN/TRIM/MAX values to be used fully on
-             * autopilot side and for servo it should have the setup to provide maximum
-             * physically possible throws at [-1:1] limits.
-             */
-
-            if (_rco_conf[starting_servo].active && ((((uint32_t) 1) << starting_servo) & _servo_bm)) {
-                cmd.actuator_id = starting_servo + 1;
-
-                // TODO: other types
-                cmd.command_type = uavcan::equipment::actuator::Command::COMMAND_TYPE_UNITLESS;
-
-                // TODO: failsafe, safety
-                cmd.command_value = constrain_float(((float) _rco_conf[starting_servo].pulse - 1000.0) / 500.0 - 1.0, -1.0, 1.0);
-
-                msg.commands.push_back(cmd);
-
-                i++;
-            }
-        }
-
-        if (i > 0) {
-            act_out_array[_canopen_i]->broadcast(msg);
-
-            if (i == 15) {
-                repeat_send = true;
-            }
-        }
-    } while (repeat_send);
+	printf("rc_out_send_servos()\n");
+	for(int i = 0; i < _rco_node_cnt; i++){
+		if(_rco_conf[i].active && (((uint32_t)1) << i) & _servo_bm){
+			int32_t rpm = ppm_to_rpm(_rco_conf[i].pulse);
+			uint32_t data[2] = {_rpmps, rpm};
+			_rco_conf[i].active = false;
+			send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)data, 8);
+		}
+	}
 }
 
 void AP_CANopen::rc_out_send_esc(void)
 {
-    static const int cmd_max = uavcan::equipment::esc::RawCommand::FieldTypes::cmd::RawValueType::max();
-    uavcan::equipment::esc::RawCommand esc_msg;
+	printf("rc_out_send_esc()\n");
+//    static const int cmd_max = uavcan::equipment::esc::RawCommand::FieldTypes::cmd::RawValueType::max();
+//    uavcan::equipment::esc::RawCommand esc_msg;
+//
+//    uint8_t active_esc_num = 0, max_esc_num = 0;
+//    uint8_t k = 0;
+//
+//    // find out how many esc we have enabled and if they are active at all
+//    for (uint8_t i = 0; i < CANOPEN_RCO_NUMBER; i++) {
+//        if ((((uint32_t) 1) << i) & _esc_bm) {
+//            max_esc_num = i + 1;
+//            if (_rco_conf[i].active) {
+//                active_esc_num++;
+//            }
+//        }
+//    }
+//
+//    // if at least one is active (update) we need to send to all
+//    if (active_esc_num > 0) {
+//        k = 0;
+//
+//        for (uint8_t i = 0; i < max_esc_num && k < 20; i++) {
+//            uavcan::equipment::actuator::Command cmd;
+//
+//            if ((((uint32_t) 1) << i) & _esc_bm) {
+//                // TODO: ESC negative scaling for reverse thrust and reverse rotation
+//                float scaled = cmd_max * (hal.rcout->scale_esc_to_unity(_rco_conf[i].pulse) + 1.0) / 2.0;
+//
+//                scaled = constrain_float(scaled, 0, cmd_max);
+//
+//                esc_msg.cmd.push_back(static_cast<int>(scaled));
+//            } else {
+//                esc_msg.cmd.push_back(static_cast<unsigned>(0));
+//            }
+//
+//            k++;
+//        }
+//
+//        esc_raw[_canopen_i]->broadcast(esc_msg);
+//    }
 
     uint8_t active_esc_num = 0, max_esc_num = 0;
     uint8_t k = 0;
@@ -587,26 +626,16 @@ void AP_CANopen::rc_out_send_esc(void)
 
     // if at least one is active (update) we need to send to all
     if (active_esc_num > 0) {
-        k = 0;
+    	k = 0;
 
-        for (uint8_t i = 0; i < max_esc_num && k < 20; i++) {
-            uavcan::equipment::actuator::Command cmd;
-
-            if ((((uint32_t) 1) << i) & _esc_bm) {
-                // TODO: ESC negative scaling for reverse thrust and reverse rotation
-                float scaled = cmd_max * (hal.rcout->scale_esc_to_unity(_rco_conf[i].pulse) + 1.0) / 2.0;
-
-                scaled = constrain_float(scaled, 0, cmd_max);
-
-                esc_msg.cmd.push_back(static_cast<int>(scaled));
-            } else {
-                esc_msg.cmd.push_back(static_cast<unsigned>(0));
-            }
-
-            k++;
-        }
-
-        esc_raw[_canopen_i]->broadcast(esc_msg);
+    	for (uint8_t i = 0; i < max_esc_num && k < 20; i++) {
+    		if ((((uint32_t) 1) << i) & _esc_bm) {
+    			int32_t rpm = ppm_to_rpm(_rco_conf[i].pulse);
+    			uint32_t data[2] = {_rpmps, rpm};
+    			_rco_conf[i].active = false;
+    			send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)data, 8);
+    		}
+    	}
     }
 }
 
@@ -681,6 +710,17 @@ int AP_CANopen::recv_raw_packet(uavcan::CanFrame& recv_frame)
     return recv;
 }
 
+int32_t AP_CANopen::ppm_to_rpm(int ppm){
+	int32_t rpm = 0;
+
+	int ppm_d = ppm - 1500; // ppm of 1500 is 0 rpm
+	float rpm_per_ppm = ((float)_rpm_max) / 500.0;
+
+	rpm = rpm_per_ppm * ppm_d;
+
+	return rpm;
+}
+
 uavcan::ISystemClock & AP_CANopen::get_system_clock()
 {
     return SystemClock::instance();
@@ -742,6 +782,7 @@ void AP_CANopen::rco_arm_actuators(bool arm)
 
 void AP_CANopen::rco_write(uint16_t pulse_len, uint8_t ch)
 {
+	printf("rco_write()\n");
     _rco_conf[ch].pulse = pulse_len;
     _rco_conf[ch].active = true;
 }
