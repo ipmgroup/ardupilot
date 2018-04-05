@@ -532,18 +532,11 @@ int AP_CANopen::node_discovery(){
 
     //printf("Nodes discovered: %d\n", _rco_node_cnt);
 
-    enable_motors();
-
 	return i;
 }
 
-void AP_CANopen::enable_motors(){
-	uint16_t data = _ctl;
-	for(int i = 0; i < _rco_node_cnt; i++){
-		//printf("Activating node %d\n", _rco_conf[i].id);
-		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&data, 2);
-		hal.scheduler->delay(1);
-	}
+uint8_t AP_CANopen::get_node_count(){
+	return _rco_node_cnt;
 }
 
 bool AP_CANopen::rc_out_sem_take()
@@ -575,47 +568,6 @@ void AP_CANopen::rc_out_send_servos(void)
 
 void AP_CANopen::rc_out_send_esc(void)
 {
-	//printf("rc_out_send_esc()\n");
-//    static const int cmd_max = uavcan::equipment::esc::RawCommand::FieldTypes::cmd::RawValueType::max();
-//    uavcan::equipment::esc::RawCommand esc_msg;
-//
-//    uint8_t active_esc_num = 0, max_esc_num = 0;
-//    uint8_t k = 0;
-//
-//    // find out how many esc we have enabled and if they are active at all
-//    for (uint8_t i = 0; i < CANOPEN_RCO_NUMBER; i++) {
-//        if ((((uint32_t) 1) << i) & _esc_bm) {
-//            max_esc_num = i + 1;
-//            if (_rco_conf[i].active) {
-//                active_esc_num++;
-//            }
-//        }
-//    }
-//
-//    // if at least one is active (update) we need to send to all
-//    if (active_esc_num > 0) {
-//        k = 0;
-//
-//        for (uint8_t i = 0; i < max_esc_num && k < 20; i++) {
-//            uavcan::equipment::actuator::Command cmd;
-//
-//            if ((((uint32_t) 1) << i) & _esc_bm) {
-//                // TODO: ESC negative scaling for reverse thrust and reverse rotation
-//                float scaled = cmd_max * (hal.rcout->scale_esc_to_unity(_rco_conf[i].pulse) + 1.0) / 2.0;
-//
-//                scaled = constrain_float(scaled, 0, cmd_max);
-//
-//                esc_msg.cmd.push_back(static_cast<int>(scaled));
-//            } else {
-//                esc_msg.cmd.push_back(static_cast<unsigned>(0));
-//            }
-//
-//            k++;
-//        }
-//
-//        esc_raw[_canopen_i]->broadcast(esc_msg);
-//    }
-
     uint8_t active_esc_num = 0, max_esc_num = 0;
     uint8_t k = 0;
 
@@ -724,6 +676,13 @@ int32_t AP_CANopen::ppm_to_rpm(int ppm){
 
 	rpm = rpm_per_ppm * ppm_d;
 
+	// Ignore negative rpm when using copter.
+#if APM_BUILD_TYPE(APM_BUILD_ArduCopter)
+	if(rpm < 0){
+		rpm = 0;
+	}
+#endif
+
 	return rpm;
 }
 
@@ -783,6 +742,12 @@ void AP_CANopen::rco_force_safety_off(void)
 
 void AP_CANopen::rco_arm_actuators(bool arm)
 {
+	uint16_t data = arm?_ctl:0;
+	for(int i = 0; i < _rco_node_cnt; i++){
+		//printf("Activating node %d\n", _rco_conf[i].id);
+		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&data, 2);
+		hal.scheduler->delay(1);
+	}
     _rco_armed = arm;
 }
 

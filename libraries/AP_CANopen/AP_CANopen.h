@@ -103,6 +103,8 @@ public:
     void rc_out_send_servos();
     void rc_out_send_esc();
 
+    uint8_t get_node_count();
+
 private:
     // ------------------------- GPS
     // 255 - means free node
@@ -153,7 +155,6 @@ private:
 
     void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
     int recv_raw_packet(uavcan::CanFrame& recv_frame);
-    void enable_motors();
     int32_t ppm_to_rpm(int ppm);
 
     //template<typename T> void generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta = 0);
