@@ -742,10 +742,12 @@ void AP_CANopen::rco_force_safety_off(void)
 
 void AP_CANopen::rco_arm_actuators(bool arm)
 {
-	uint16_t data = arm?_ctl:0;
+	uint16_t pdo1 = arm?_ctl:0;
+	int32_t pdo2[2] = {_rpmps, 0};
 	for(int i = 0; i < _rco_node_cnt; i++){
 		//printf("Activating node %d\n", _rco_conf[i].id);
-		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&data, 2);
+		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&pdo1, 2);
+		send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)&pdo2, 8);
 		hal.scheduler->delay(1);
 	}
     _rco_armed = arm;

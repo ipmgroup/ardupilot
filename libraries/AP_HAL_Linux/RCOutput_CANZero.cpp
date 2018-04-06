@@ -183,44 +183,21 @@ namespace Linux {
 	    _corked = false;
 	}
 
-	template<typename T> void RCOutput_CANZero::set_acceleration(uint8_t ch, T acc)
-	{
-		if(ch_inf[ch].can){
-			can_frame frame_output;
-			generate_frame<CAN_SET_RPMPS_DATA_TYPE>(&frame_output, CAN_SET_RPMPS_ID, ch_inf[ch].hw_chan, CAN_SET_RPMPS_META, acc);
-			::write(can_socket, &frame_output, CAN_MTU);
-		}
-	}
-
-	template<typename T> void RCOutput_CANZero::set_acceleration_all(T acc)
-	{
-		for(uint8_t ch = 0; ch < channel_count; ch++){
-			if(ch_inf[ch].can){
-				can_frame frame_output;
-				generate_frame<CAN_SET_RPMPS_DATA_TYPE>(&frame_output, CAN_SET_RPMPS_ID, ch_inf[ch].hw_chan, CAN_SET_RPMPS_META, acc);
-				::write(can_socket, &frame_output, CAN_MTU);
-			}
-		}
-	}
-
-	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width)
-	{
-		T rpm = ((float(max_rpm))/500)*(float(pulse_width)-1500);
-		//printf("ppm: %d\nrpm: %d\nmax rpm: %d\n", pulse_width, rpm, max_rpm);
-		return rpm;//((float(max_rpm))/500)*(float(pulse_width)-1500);
-	}
-
-	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm)
-	{
-		return (float(rpm)/float(max_rpm))*500+1500;
-	}
-
-	template<typename T> void RCOutput_CANZero::data_array_to_var(uint8_t *data, T *var){
-		*var = 0;
-		for(int i = 0; i < sizeof(T); i++){
-			//printf("%02x", data[i]);
-			*var |= (T)((((uint64_t)data[i])&0xFF)<<i*8);
-		}
-		//printf("\n");
-	}
+//	template<typename T> T RCOutput_CANZero::ppm_to_rpm(uint16_t pulse_width)
+//	{
+//		T rpm = ((float(max_rpm))/500)*(float(pulse_width)-1500);
+//		return rpm;
+//	}
+//
+//	template<typename T> uint16_t RCOutput_CANZero::rpm_to_ppm(T rpm)
+//	{
+//		return (float(rpm)/float(max_rpm))*500+1500;
+//	}
+//
+//	template<typename T> void RCOutput_CANZero::data_array_to_var(uint8_t *data, T *var){
+//		*var = 0;
+//		for(int i = 0; i < sizeof(T); i++){
+//			*var |= (T)((((uint64_t)data[i])&0xFF)<<i*8);
+//		}
+//	}
 }

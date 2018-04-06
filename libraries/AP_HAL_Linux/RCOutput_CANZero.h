@@ -41,12 +41,10 @@ private:
 	uint8_t can_channel_count;
 	uint8_t channel_count;
 
-	template<typename T> T ppm_to_rpm(uint16_t pulse_width); //ppm pulse width min 1000, null 1500, max 2000
-	template<typename T> uint16_t rpm_to_ppm(T rpm);
-	template<typename T> void data_array_to_var(uint8_t *data, T *var);
+//	template<typename T> T ppm_to_rpm(uint16_t pulse_width); //ppm pulse width min 1000, null 1500, max 2000
+//	template<typename T> uint16_t rpm_to_ppm(T rpm);
+//	template<typename T> void data_array_to_var(uint8_t *data, T *var);
 	void _write(uint8_t ch, uint16_t period_us);
-	template<typename T> void set_acceleration(uint8_t ch, T acc);
-	template<typename T> void set_acceleration_all(T acc);
 
 	// Holds information about the assignment of PWM/CAN channels.
 	typedef struct ChannelInfo {
