@@ -90,10 +90,7 @@ namespace Linux {
 			return;
 		}
 		if(ch_inf[ch].can){
-			//printf("Enabling channel %d.\n", ch_inf[ch].hw_chan);
-			can_frame frame_output;
-			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, ctl_on);
-			::write(can_socket, &frame_output, CAN_MTU);
+			// Do nothing since the motor is enabled in AP_CANopen.
 		}else{
 			sysfs_out->enable_ch(ch_inf[ch].hw_chan);
 		}
@@ -105,9 +102,7 @@ namespace Linux {
 			return;
 		}
 		if(ch_inf[ch].can){
-			can_frame frame_output;
-			generate_frame<CAN_SET_CTL_DATA_TYPE>(&frame_output, CAN_SET_CTL_ID, ch_inf[ch].hw_chan, CAN_SET_CTL_META, CAN_SET_CTL_OFF_DATA);
-			::write(can_socket, &frame_output, CAN_MTU);
+			_write(ch, 0);
 		}else{
 			sysfs_out->disable_ch(ch_inf[ch].hw_chan);
 		}

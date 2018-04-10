@@ -96,3 +96,5 @@ GRTAGS
 GTAGS
 config.mk
 *.apj
+.tags1
+s.vim

@@ -615,6 +615,15 @@ void AP_CANopen::do_cyclic(void)
 
 	if (rc_out_sem_take()) {
 		//printf("_rco_armed: %d\n", _rco_armed);
+
+		// If actuators aren't armed yet and some motor is expected to move, enable them.
+		// If actuators are armed, but we don't want to move, disable them.
+		if(!_rco_armed && (_servo_bm || _esc_bm)){
+			rco_arm_actuators(true);
+		}else if(_rco_armed && !_servo_bm && !_esc_bm){
+			rco_arm_actuators(false);
+		}
+
 		if (_rco_armed) {
 			// if we have any Servos in bitmask
 			if (_servo_bm > 0) {
