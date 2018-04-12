@@ -19,11 +19,13 @@ extern const AP_HAL::HAL& hal;
 
 namespace Linux {
 
-	RCOutput_CANZero::RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count)
+	RCOutput_CANZero::RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count, uint8_t can_ch_count)
 	{
 		// Initialize sysfs to use PWM.
 		sysfs_out = new RCOutput_Sysfs(pwm_chip, pwm_channel_base, pwm_ch_count);
 		this->pwm_channel_count_max = pwm_ch_count;
+		this->can_channel_count_max = can_ch_count;
+		this->can_channel_count = can_ch_count;
 	}
 
 	RCOutput_CANZero::~RCOutput_CANZero()
@@ -37,9 +39,10 @@ namespace Linux {
 	{
 		sysfs_out->init();
 
-		this->ap_co = AP_CANopen::get_CANopen(hal.can_mgr[0]);
+		//printf("%d\n", (int)hal.can_mgr[0]);
+		//this->ap_co = AP_CANopen::get_CANopen(hal.can_mgr[0]);
 
-		can_channel_count = ap_co->get_node_count();
+		//can_channel_count = ap_co->get_node_count();
 
 		this->ch_inf = (ChannelInfo*)calloc(can_channel_count+pwm_channel_count_max, sizeof(ChannelInfo));
 		this->_pending = (uint16_t*)calloc(can_channel_count+pwm_channel_count_max, sizeof(uint16_t));
@@ -124,10 +127,16 @@ namespace Linux {
 	void RCOutput_CANZero::_write(uint8_t ch, uint16_t period_us)
 	{
 		ch_inf[ch].ppm = period_us;
-		if(ch_inf[ch].can){
-			ap_co->rco_write(period_us, ch_inf[ch].hw_chan);
-		}else{
-			sysfs_out->write(ch_inf[ch].hw_chan, period_us);
+		if(this->ap_co == NULL && hal.can_mgr[0] != NULL){
+			this->ap_co = AP_CANopen::get_CANopen(hal.can_mgr[0]);
+		}
+
+		if(this->ap_co != NULL){
+			if(ch_inf[ch].can){
+				ap_co->rco_write(period_us, ch_inf[ch].hw_chan);
+			}else{
+				sysfs_out->write(ch_inf[ch].hw_chan, period_us);
+			}
 		}
 	}
 

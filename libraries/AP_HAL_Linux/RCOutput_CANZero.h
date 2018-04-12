@@ -12,7 +12,7 @@ namespace Linux {
 
 class RCOutput_CANZero : public AP_HAL::RCOutput {
 public:
-	RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count);
+	RCOutput_CANZero(uint8_t pwm_chip, uint8_t pwm_channel_base, uint8_t pwm_ch_count, uint8_t can_ch_count);
 	~RCOutput_CANZero();
 
 	static RCOutput_CANZero *from(AP_HAL::RCOutput *rcoutput)

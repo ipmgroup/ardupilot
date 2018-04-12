@@ -352,9 +352,9 @@ int CAN::_write(const uavcan::CanFrame& frame) const
     errno = 0;
 
     const can_frame sockcan_frame = makeSocketCanFrame(frame);
-    unsigned char *p = (unsigned char *)&sockcan_frame;
+    //unsigned char *p = (unsigned char *)&sockcan_frame;
 
-    printf ("fd[%d] %02x%02x: %02x %02x %02x %02x \n", _fd, p[0], p[1], p[2], p[3], p[4], p[5]);
+    //printf ("fd[%d] %02x%02x: %02x %02x %02x %02x \n", _fd, p[0], p[1], p[2], p[3], p[4], p[5]);
     const int res = write(_fd, &sockcan_frame, sizeof(sockcan_frame));
     if (res <= 0) {
         if (errno == ENOBUFS || errno == EAGAIN) {  // Writing is not possible atm, not an error
