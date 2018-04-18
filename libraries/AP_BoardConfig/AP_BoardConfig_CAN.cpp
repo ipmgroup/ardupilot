@@ -156,7 +156,6 @@ void AP_BoardConfig_CAN::setup_canbus(void)
                 }
                 if (_var_info_can_protocol[i]._protocol == CANOPEN_PROTOCOL_ENABLE) {
                     _var_info_can_protocol[i]._can_protocol = new AP_CANopen;
-                    printf("CANOPEN PROTOCOL ENABLE %d\n\r", i + 1);
 
                     if (_var_info_can_protocol[i]._can_protocol != nullptr)
                     {

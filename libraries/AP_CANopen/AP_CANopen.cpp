@@ -170,19 +170,14 @@ bool AP_CANopen::try_init(void)
             }
 
             if(_canopen_i == UINT8_MAX) {
-                return false;
+            	_initialized = false;
             }
         }
 
         _initialized = true;
-
-        if (_initialized) {
-        	printf("_initialized\n");
-            return true;
-        }
     }
 
-    return false;
+    return _initialized;
 }
 
 int AP_CANopen::node_discovery(){
