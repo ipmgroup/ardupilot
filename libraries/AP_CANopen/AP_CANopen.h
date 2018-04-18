@@ -143,7 +143,10 @@ private:
         uint16_t safety_pulse;
         uint16_t failsafe_pulse;
         bool active;
+        uint16_t pulse_read; // Contains the value received from the controllers.
     } _rco_conf[CANOPEN_RCO_NUMBER];
+
+    std::map<uint8_t, uint8_t> _discovered_nodes; // Used for discovery and reverse search. Key is node ID, value is position in _rco_conf.
 
     uint8_t _rco_node_cnt;
 
@@ -153,9 +156,13 @@ private:
 
     AP_HAL::Semaphore *_rc_out_sem;
 
+    uavcan::MonotonicTime _last_sync;
+
     void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
     int recv_raw_packet(uavcan::CanFrame& recv_frame);
+    int recv_ppm();
     int32_t ppm_to_rpm(int ppm);
+    uint16_t rpm_to_ppm(int32_t);
 
     //template<typename T> void generate_frame(can_frame *frame, uint16_t base_id, uint16_t node_id, uint32_t meta, T value, uint8_t ignore_meta = 0);
 
@@ -221,6 +228,8 @@ private:
     AP_Int8 _ctl;
     AP_Int32 _rpm_max;
     AP_Int32 _rpmps;
+    AP_Int32 _can_interval_us; // Sets the minimum amount of time between sending CAN messages.
+    AP_Int32 _polling_interval_us; // Sets the minimum amount of time between rpm reads. 0 - return written value instead of attempting to read.
 
     uint8_t _canopen_i;
 
@@ -235,6 +244,8 @@ public:
     void rco_force_safety_off(void);
     void rco_arm_actuators(bool arm);
     void rco_write(uint16_t pulse_len, uint8_t ch);
+    uint16_t get_ppm(uint8_t ch);
+    bool channel_enabled(uint8_t ch);
 
 
     static AP_CANopen* get_CANopen(AP_HAL::CANManager *mgr);

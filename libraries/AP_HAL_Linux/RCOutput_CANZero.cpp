@@ -147,7 +147,12 @@ namespace Linux {
 		}
 		uint16_t ppm;
 		if(ch_inf[ch].can){
-			ppm = ch_inf[ch].ppm;
+			if(ap_co != NULL && ap_co->channel_enabled(ch_inf[ch].hw_chan)){
+				ppm = ap_co->get_ppm(ch_inf[ch].hw_chan);
+				printf("channel %d: %d\n", ch_inf[ch].hw_chan, ppm);
+			}else{
+				ppm = ch_inf[ch].ppm;
+			}
 		}else{
 			ppm = sysfs_out->read(ch_inf[ch].hw_chan);
 		}

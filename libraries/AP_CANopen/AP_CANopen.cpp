@@ -90,246 +90,22 @@ const AP_Param::GroupInfo AP_CANopen::var_info[] = {
     // @User: Advanced
 	AP_GROUPINFO("RPMPS", 6, AP_CANopen, _rpmps, 20000),
 
+    // @Param: CI
+    // @DisplayName: CAN message interval
+    // @Description: Sets the minimum amount of time between sending CAN messages in us.
+    // @Range: 0 1000000
+    // @User: Advanced
+	AP_GROUPINFO("CI", 7, AP_CANopen, _can_interval_us, 500),
+
+	// @Param: POL
+	// @DisplayName: CAN message interval
+	// @Description: Sets the minimum amount of time between rpm reads in us. 0 - return written value instead of attempting to read.
+	// @Range: 0 1000000
+	// @User: Advanced
+	AP_GROUPINFO("POL", 8, AP_CANopen, _polling_interval_us, 20000),
+
     AP_GROUPEND
 };
-
-//static void gnss_fix_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_GPS::GPS_State *state = ap_canopen->find_gps_node(msg.getSrcNodeID().get());
-//
-//            if (state != nullptr) {
-//                bool process = false;
-//
-//                if (msg.status == uavcan::equipment::gnss::Fix::STATUS_NO_FIX) {
-//                    state->status = AP_GPS::GPS_Status::NO_FIX;
-//                } else {
-//                    if (msg.status == uavcan::equipment::gnss::Fix::STATUS_TIME_ONLY) {
-//                        state->status = AP_GPS::GPS_Status::NO_FIX;
-//                    } else if (msg.status == uavcan::equipment::gnss::Fix::STATUS_2D_FIX) {
-//                        state->status = AP_GPS::GPS_Status::GPS_OK_FIX_2D;
-//                        process = true;
-//                    } else if (msg.status == uavcan::equipment::gnss::Fix::STATUS_3D_FIX) {
-//                        state->status = AP_GPS::GPS_Status::GPS_OK_FIX_3D;
-//                        process = true;
-//                    }
-//
-//                    if (msg.gnss_time_standard == uavcan::equipment::gnss::Fix::GNSS_TIME_STANDARD_UTC) {
-//                        uint64_t epoch_ms = uavcan::UtcTime(msg.gnss_timestamp).toUSec();
-//                        epoch_ms /= 1000;
-//                        uint64_t gps_ms = epoch_ms - UNIX_OFFSET_MSEC;
-//                        state->time_week = (uint16_t)(gps_ms / AP_MSEC_PER_WEEK);
-//                        state->time_week_ms = (uint32_t)(gps_ms - (state->time_week) * AP_MSEC_PER_WEEK);
-//                    }
-//                }
-//
-//                if (process) {
-//                    Location loc = { };
-//                    loc.lat = msg.latitude_deg_1e8 / 10;
-//                    loc.lng = msg.longitude_deg_1e8 / 10;
-//                    loc.alt = msg.height_msl_mm / 10;
-//                    state->location = loc;
-//                    state->location.options = 0;
-//
-//                    if (!uavcan::isNaN(msg.ned_velocity[0])) {
-//                        Vector3f vel(msg.ned_velocity[0], msg.ned_velocity[1], msg.ned_velocity[2]);
-//                        state->velocity = vel;
-//                        state->ground_speed = norm(vel.x, vel.y);
-//                        state->ground_course = wrap_360(degrees(atan2f(vel.y, vel.x)));
-//                        state->have_vertical_velocity = true;
-//                    } else {
-//                        state->have_vertical_velocity = false;
-//                    }
-//
-//                    float pos_cov[9];
-//                    msg.position_covariance.unpackSquareMatrix(pos_cov);
-//                    if (!uavcan::isNaN(pos_cov[8])) {
-//                        if (pos_cov[8] > 0) {
-//                            state->vertical_accuracy = sqrtf(pos_cov[8]);
-//                            state->have_vertical_accuracy = true;
-//                        } else {
-//                            state->have_vertical_accuracy = false;
-//                        }
-//                    } else {
-//                        state->have_vertical_accuracy = false;
-//                    }
-//
-//                    const float horizontal_pos_variance = MAX(pos_cov[0], pos_cov[4]);
-//                    if (!uavcan::isNaN(horizontal_pos_variance)) {
-//                        if (horizontal_pos_variance > 0) {
-//                            state->horizontal_accuracy = sqrtf(horizontal_pos_variance);
-//                            state->have_horizontal_accuracy = true;
-//                        } else {
-//                            state->have_horizontal_accuracy = false;
-//                        }
-//                    } else {
-//                        state->have_horizontal_accuracy = false;
-//                    }
-//
-//                    float vel_cov[9];
-//                    msg.velocity_covariance.unpackSquareMatrix(vel_cov);
-//                    if (!uavcan::isNaN(vel_cov[0])) {
-//                        state->speed_accuracy = sqrtf((vel_cov[0] + vel_cov[4] + vel_cov[8]) / 3.0);
-//                        state->have_speed_accuracy = true;
-//                    } else {
-//                        state->have_speed_accuracy = false;
-//                    }
-//
-//                    state->num_sats = msg.sats_used;
-//                } else {
-//                    state->have_vertical_velocity = false;
-//                    state->have_vertical_accuracy = false;
-//                    state->have_horizontal_accuracy = false;
-//                    state->have_speed_accuracy = false;
-//                    state->num_sats = 0;
-//                }
-//
-//                state->last_gps_time_ms = AP_HAL::millis();
-//
-//                // after all is filled, update all listeners with new data
-//                ap_canopen->update_gps_state(msg.getSrcNodeID().get());
-//            }
-//        }
-//    }
-//}
-//
-//static void gnss_fix_cb0(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg)
-//{   gnss_fix_cb(msg, 0); }
-//static void gnss_fix_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg)
-//{   gnss_fix_cb(msg, 1); }
-//static void (*gnss_fix_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Fix>& msg)
-//        = { gnss_fix_cb0, gnss_fix_cb1 };
-//
-//static void gnss_aux_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_GPS::GPS_State *state = ap_canopen->find_gps_node(msg.getSrcNodeID().get());
-//
-//            if (state != nullptr) {
-//                if (!uavcan::isNaN(msg.hdop)) {
-//                    state->hdop = msg.hdop * 100.0;
-//                }
-//
-//                if (!uavcan::isNaN(msg.vdop)) {
-//                    state->vdop = msg.vdop * 100.0;
-//                }
-//            }
-//        }
-//    }
-//}
-//
-//static void gnss_aux_cb0(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg)
-//{   gnss_aux_cb(msg, 0); }
-//static void gnss_aux_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg)
-//{   gnss_aux_cb(msg, 1); }
-//static void (*gnss_aux_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::gnss::Auxiliary>& msg)
-//        = { gnss_aux_cb0, gnss_aux_cb1 };
-//
-//static void magnetic_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_CANopen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), 0);
-//            if (state != nullptr) {
-//                state->mag_vector[0] = msg.magnetic_field_ga[0];
-//                state->mag_vector[1] = msg.magnetic_field_ga[1];
-//                state->mag_vector[2] = msg.magnetic_field_ga[2];
-//
-//                // after all is filled, update all listeners with new data
-//                ap_canopen->update_mag_state(msg.getSrcNodeID().get(), 0);
-//            }
-//        }
-//    }
-//}
-//
-//static void magnetic_cb0(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg)
-//{   magnetic_cb(msg, 0); }
-//static void magnetic_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg)
-//{   magnetic_cb(msg, 1); }
-//static void (*magnetic_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength>& msg)
-//        = { magnetic_cb0, magnetic_cb1 };
-//
-//static void magnetic_cb_2(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_CANopen::Mag_Info *state = ap_canopen->find_mag_node(msg.getSrcNodeID().get(), msg.sensor_id);
-//            if (state != nullptr) {
-//                state->mag_vector[0] = msg.magnetic_field_ga[0];
-//                state->mag_vector[1] = msg.magnetic_field_ga[1];
-//                state->mag_vector[2] = msg.magnetic_field_ga[2];
-//
-//                // after all is filled, update all listeners with new data
-//                ap_canopen->update_mag_state(msg.getSrcNodeID().get(), msg.sensor_id);
-//            }
-//        }
-//    }
-//}
-//
-//static void magnetic_cb_2_0(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg)
-//{   magnetic_cb_2(msg, 0); }
-//static void magnetic_cb_2_1(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg)
-//{   magnetic_cb_2(msg, 1); }
-//static void (*magnetic_cb_2_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::ahrs::MagneticFieldStrength2>& msg)
-//        = { magnetic_cb_2_0, magnetic_cb_2_1 };
-//
-//static void air_data_sp_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_CANopen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
-//
-//            if (state != nullptr) {
-//                state->pressure = msg.static_pressure;
-//                state->pressure_variance = msg.static_pressure_variance;
-//
-//                // after all is filled, update all listeners with new data
-//                ap_canopen->update_baro_state(msg.getSrcNodeID().get());
-//            }
-//        }
-//    }
-//}
-//
-//static void air_data_sp_cb0(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg)
-//{   air_data_sp_cb(msg, 0); }
-//static void air_data_sp_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg)
-//{   air_data_sp_cb(msg, 1); }
-//static void (*air_data_sp_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticPressure>& msg)
-//        = { air_data_sp_cb0, air_data_sp_cb1 };
-//
-//// Temperature is not main parameter so do not update listeners when it is received
-//static void air_data_st_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg, uint8_t mgr)
-//{
-//    if (hal.can_mgr[mgr] != nullptr) {
-//        AP_CANopen *ap_canopen = AP_CANopen::get_CANopen(hal.can_mgr[mgr]);
-//        if (ap_canopen != nullptr) {
-//            AP_CANopen::Baro_Info *state = ap_canopen->find_baro_node(msg.getSrcNodeID().get());
-//
-//            if (state != nullptr) {
-//                state->temperature = msg.static_temperature;
-//                state->temperature_variance = msg.static_temperature_variance;
-//            }
-//        }
-//    }
-//}
-//
-//static void air_data_st_cb0(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg)
-//{   air_data_st_cb(msg, 0); }
-//static void air_data_st_cb1(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg)
-//{   air_data_st_cb(msg, 1); }
-//static void (*air_data_st_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::StaticTemperature>& msg)
-//        = { air_data_st_cb0, air_data_st_cb1 };
-//
-//// publisher interfaces
-//static uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>* act_out_array[MAX_NUMBER_OF_CAN_DRIVERS];
-//static uavcan::Publisher<uavcan::equipment::esc::RawCommand>* esc_raw[MAX_NUMBER_OF_CAN_DRIVERS];
 
 AP_CANopen::AP_CANopen() :
     _node_allocator(
@@ -369,6 +145,8 @@ AP_CANopen::AP_CANopen() :
         _mag_listener_sensor_ids[i] = 0;
     }
 
+    _last_sync = _last_sync.fromUSec(0);
+
     _rc_out_sem = hal.util->new_semaphore();
 
     debug_canopen(2, "AP_CANopen constructed\n\r");
@@ -394,111 +172,9 @@ bool AP_CANopen::try_init(void)
             if(_canopen_i == UINT8_MAX) {
                 return false;
             }
-
-//            auto *node = get_node();
-//
-//             if (node != nullptr) {
-//                 if (!node->isStarted()) {
-//                     uavcan::NodeID self_node_id(_canopen_node);
-//                     node->setNodeID(self_node_id);
-//
-//                     char ndname[20];
-//                     snprintf(ndname, sizeof(ndname), "org.ardupilot:%u", _canopen_i);
-//
-//                     uavcan::NodeStatusProvider::NodeName name(ndname);
-//                     node->setName(name);
-//
-//                     uavcan::protocol::SoftwareVersion sw_version; // Standard type uavcan.protocol.SoftwareVersion
-//                     sw_version.major = AP_CANOPEN_SW_VERS_MAJOR;
-//                     sw_version.minor = AP_CANOPEN_SW_VERS_MINOR;
-//                     node->setSoftwareVersion(sw_version);
-//
-//                     uavcan::protocol::HardwareVersion hw_version; // Standard type uavcan.protocol.HardwareVersion
-//
-//                     hw_version.major = AP_CANOPEN_HW_VERS_MAJOR;
-//                     hw_version.minor = AP_CANOPEN_HW_VERS_MINOR;
-//                     node->setHardwareVersion(hw_version);
-//
-//                     const int node_start_res = node->start();
-//                     if (node_start_res < 0) {
-//                         debug_canopen(1, "CANopen: node start problem\n\r");
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::gnss::Fix> *gnss_fix;
-//                     gnss_fix = new uavcan::Subscriber<uavcan::equipment::gnss::Fix>(*node);
-//
-//                     const int gnss_fix_start_res = gnss_fix->start(gnss_fix_cb_arr[_canopen_i]);
-//                     if (gnss_fix_start_res < 0) {
-//                         debug_canopen(1, "CANopen GNSS subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary> *gnss_aux;
-//                     gnss_aux = new uavcan::Subscriber<uavcan::equipment::gnss::Auxiliary>(*node);
-//                     const int gnss_aux_start_res = gnss_aux->start(gnss_aux_cb_arr[_canopen_i]);
-//                     if (gnss_aux_start_res < 0) {
-//                         debug_canopen(1, "CANopen GNSS Aux subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength> *magnetic;
-//                     magnetic = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength>(*node);
-//                     const int magnetic_start_res = magnetic->start(magnetic_cb_arr[_canopen_i]);
-//                     if (magnetic_start_res < 0) {
-//                         debug_canopen(1, "CANopen Compass subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2> *magnetic2;
-//                     magnetic2 = new uavcan::Subscriber<uavcan::equipment::ahrs::MagneticFieldStrength2>(*node);
-//                     const int magnetic_start_res_2 = magnetic2->start(magnetic_cb_2_arr[_canopen_i]);
-//                     if (magnetic_start_res_2 < 0) {
-//                         debug_canopen(1, "CANopen Compass for multiple mags subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure> *air_data_sp;
-//                     air_data_sp = new uavcan::Subscriber<uavcan::equipment::air_data::StaticPressure>(*node);
-//                     const int air_data_sp_start_res = air_data_sp->start(air_data_sp_cb_arr[_canopen_i]);
-//                     if (air_data_sp_start_res < 0) {
-//                         debug_canopen(1, "CANopen Baro subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature> *air_data_st;
-//                     air_data_st = new uavcan::Subscriber<uavcan::equipment::air_data::StaticTemperature>(*node);
-//                     const int air_data_st_start_res = air_data_st->start(air_data_st_cb_arr[_canopen_i]);
-//                     if (air_data_st_start_res < 0) {
-//                         debug_canopen(1, "CANopen Temperature subscriber start problem\n\r");
-//                         return false;
-//                     }
-//
-//                     act_out_array[_canopen_i] = new uavcan::Publisher<uavcan::equipment::actuator::ArrayCommand>(*node);
-//                     act_out_array[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
-//                     act_out_array[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
-//
-//                     esc_raw[_canopen_i] = new uavcan::Publisher<uavcan::equipment::esc::RawCommand>(*node);
-//                     esc_raw[_canopen_i]->setTxTimeout(uavcan::MonotonicDuration::fromMSec(20));
-//                     esc_raw[_canopen_i]->setPriority(uavcan::TransferPriority::OneLowerThanHighest);
-//
-//                     /*
-//                      * Informing other nodes that we're ready to work.
-//                      * Default mode is INITIALIZING.
-//                      */
-//                     node->setModeOperational();
-//
-//                     _initialized = true;
-//
-//                     debug_canopen(1, "CANopen: init done\n\r");
-//
-//                     return true;
-//                 }
-//             }
         }
 
         _initialized = true;
-
-        //_rco_armed = 1;
 
         if (_initialized) {
         	printf("_initialized\n");
@@ -510,8 +186,6 @@ bool AP_CANopen::try_init(void)
 }
 
 int AP_CANopen::node_discovery(){
-	std::map<uint8_t, uint8_t> nodes;
-
 	uint8_t data[8] = {0x00};
 	send_raw_packet(0x80, data, 1);
     hal.scheduler->delay(100);
@@ -520,13 +194,13 @@ int AP_CANopen::node_discovery(){
 
     uavcan::CanFrame frm;
     while(recv_raw_packet(frm) && te > SystemClock::instance().getMonotonic()){
-    	nodes[frm.id & 0x7F] = frm.id & 0x7F;
+    	_discovered_nodes[frm.id & 0x7F] = frm.id & 0x7F;
     }
 
     int i = 0;
-    for(std::map<uint8_t, uint8_t>::iterator it = nodes.begin(); it != nodes.end() && i < CANOPEN_RCO_NUMBER; it++){
+    for(std::map<uint8_t, uint8_t>::iterator it = _discovered_nodes.begin(); it != _discovered_nodes.end() && i < CANOPEN_RCO_NUMBER; it++){
     	_rco_conf[i].id = it->first;
-    	//printf("%03d %03X\n", i, it->first);
+    	it->second = i;
     	i++;
     }
 
@@ -561,9 +235,12 @@ void AP_CANopen::rc_out_send_servos(void)
 	for(int i = 0; i < _rco_node_cnt; i++){
 		if(_rco_conf[i].active && (((uint32_t)1) << i) & _servo_bm){
 			int32_t rpm = ppm_to_rpm(_rco_conf[i].pulse);
-			int32_t data[2] = {rpm, _rpmps};
+			int32_t data[2] = {_rpmps, rpm};
 			_rco_conf[i].active = false;
-			send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)data, 8);
+			uint32_t id = 0x300 | _rco_conf[i].id;
+			//printf("id: %X\n", id);
+			send_raw_packet(id, (uint8_t*)data, 8);
+			hal.scheduler->delay_microseconds(500);
 		}
 	}
 }
@@ -588,11 +265,13 @@ void AP_CANopen::rc_out_send_esc(void)
     	k = 0;
 
     	for (uint8_t i = 0; i < max_esc_num && k < 20; i++) {
-    		if ((((uint32_t) 1) << i) & _esc_bm) {
+    		if ((((uint32_t) 1) << i) & _esc_bm && i < _rco_node_cnt) {
     			int32_t rpm = ppm_to_rpm(_rco_conf[i].pulse);
-    			int32_t data[2] = {rpm, _rpmps};
+    			int32_t data[2] = {_rpmps, rpm};
     			_rco_conf[i].active = false;
-    			send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)data, 8);
+    			uint32_t id = 0x300 | _rco_conf[i].id;
+    			//printf("id: %X\n", _rco_conf[i].id);
+    			send_raw_packet(id, (uint8_t*)data, 8);
     		}
     	}
     }
@@ -636,6 +315,8 @@ void AP_CANopen::do_cyclic(void)
 			if (_esc_bm > 0) {
 				rc_out_send_esc();
 			}
+
+			recv_ppm();
 		}
 
 		for (uint8_t i = 0; i < CANOPEN_RCO_NUMBER; i++) {
@@ -680,6 +361,59 @@ int AP_CANopen::recv_raw_packet(uavcan::CanFrame& recv_frame)
     return recv;
 }
 
+int AP_CANopen::recv_ppm(){
+	uint8_t data[8] = {0x00};
+
+	uavcan::MonotonicTime now = SystemClock::instance().getMonotonic();
+	uavcan::MonotonicDuration dt_min;
+	dt_min = dt_min.fromUSec(_polling_interval_us);
+	uavcan::MonotonicTime lockout_end = _last_sync + dt_min;
+
+	if(_polling_interval_us > 0){
+		if(now > lockout_end){
+			send_raw_packet(0x80, data, 1);
+			_last_sync = now;
+		}
+
+		uavcan::CanFrame recv_frame;
+		int recv = recv_raw_packet(recv_frame);
+		while(recv > 0 && (recv_frame.id & 0xFF80) == 0x280){
+			int32_t *pdo = (int32_t*)recv_frame.data;
+			//printf("received: %d\n", rpm_to_ppm(pdo[0]));
+
+			//printf("%03X:", recv_frame.id);
+			//for(int i = 0; i < 8; i++) printf(" %02X", recv_frame.data[i]);
+			//printf("\n");
+
+			_rco_conf[_discovered_nodes[recv_frame.id&0x7F]].pulse_read = rpm_to_ppm(pdo[0]);
+
+			recv = recv_raw_packet(recv_frame);
+		}
+		//printf("motor 1 ppm: %d\n", _rco_conf[0].pulse_read);
+		return recv;
+	}else{
+		for(int i = 0; i < _rco_node_cnt; i++){
+			_rco_conf[i].pulse_read = _rco_conf[i].pulse;
+		}
+		return 0;
+	}
+}
+
+uint16_t AP_CANopen::get_ppm(uint8_t ch){
+	uint16_t ppm = 0;
+
+	rc_out_sem_take();
+	ppm = _rco_conf[ch].pulse_read;
+	rc_out_sem_give();
+
+	return ppm;
+}
+
+bool AP_CANopen::channel_enabled(uint8_t ch){
+	bool ch_en = (_servo_bm & (1<<ch)) || (_esc_bm & (1<<ch));
+	return ch_en;
+}
+
 int32_t AP_CANopen::ppm_to_rpm(int ppm){
 	int32_t rpm = 0;
 
@@ -696,6 +430,16 @@ int32_t AP_CANopen::ppm_to_rpm(int ppm){
 #endif
 
 	return rpm;
+}
+
+uint16_t AP_CANopen::rpm_to_ppm(int32_t rpm){
+	uint16_t ppm = 1500;
+
+	float rpm_per_ppm = ((float)_rpm_max) / 500.0;
+	float ppm_d = rpm/rpm_per_ppm;
+	ppm += ppm_d;
+
+	return ppm;
 }
 
 uavcan::ISystemClock & AP_CANopen::get_system_clock()
