@@ -149,7 +149,7 @@ namespace Linux {
 		if(ch_inf[ch].can){
 			if(ap_co != NULL && ap_co->channel_enabled(ch_inf[ch].hw_chan)){
 				ppm = ap_co->get_ppm(ch_inf[ch].hw_chan);
-				printf("channel %d: %d\n", ch_inf[ch].hw_chan, ppm);
+				//printf("channel %d: %d\n", ch_inf[ch].hw_chan, ppm);
 			}else{
 				ppm = ch_inf[ch].ppm;
 			}

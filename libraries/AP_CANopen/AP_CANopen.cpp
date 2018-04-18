@@ -500,9 +500,9 @@ void AP_CANopen::rco_arm_actuators(bool arm)
 {
 	uint16_t pdo1 = arm?_ctl:0;
 	int32_t pdo2[2] = {_rpmps, 0};
-	printf("%s %d actuators\n", arm?"arming":"disarming", _rco_node_cnt);
+	//printf("%s %d actuators\n", arm?"arming":"disarming", _rco_node_cnt);
 	for(int i = 0; i < _rco_node_cnt; i++){
-		printf("%s node %d\n", arm?"Activating":"Deactivating", _rco_conf[i].id);
+		//printf("%s node %d\n", arm?"Activating":"Deactivating", _rco_conf[i].id);
 		send_raw_packet(0x200 | _rco_conf[i].id, (uint8_t*)&pdo1, 2);
 		send_raw_packet(0x300 | _rco_conf[i].id, (uint8_t*)&pdo2, 8);
 		//hal.scheduler->delay(1);
