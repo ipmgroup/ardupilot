@@ -313,7 +313,7 @@ static void (*air_data_st_cb_arr[2])(const uavcan::ReceivedDataStructure<uavcan:
 static void battery_info_st_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::power::BatteryInfo>& msg, uint8_t mgr)
 {
     if (hal.can_mgr[mgr] != nullptr) {
-        AP_UAVCAN *ap_uavcan = hal.can_mgr[mgr]->get_UAVCAN();
+        AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_UAVCAN(hal.can_mgr[mgr]);
         if (ap_uavcan != nullptr) {
             AP_UAVCAN::BatteryInfo_Info *state = ap_uavcan->find_bi_id((uint16_t) msg.battery_id);
 
@@ -1354,7 +1354,7 @@ AP_UAVCAN *AP_UAVCAN::get_uavcan(uint8_t iface)
     if (iface >= MAX_NUMBER_OF_CAN_INTERFACES || !hal.can_mgr[iface]) {
         return nullptr;
     }
-    return hal.can_mgr[iface]->get_UAVCAN();
+    return AP_UAVCAN::get_UAVCAN(hal.can_mgr[iface]);
 }
 
 AP_UAVCAN* AP_UAVCAN::get_UAVCAN(AP_HAL::CANManager *mgr)
