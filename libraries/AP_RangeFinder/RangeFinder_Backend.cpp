@@ -19,13 +19,22 @@
 #include "RangeFinder_Backend.h"
 
 extern const AP_HAL::HAL& hal;
+AP_RangeFinder_Params &dummy = *(new AP_RangeFinder_Params());
 
 /*
   base class constructor. 
   This incorporates initialisation as well.
 */
 AP_RangeFinder_Backend::AP_RangeFinder_Backend(RangeFinder::RangeFinder_State &_state) :
-        state(_state)
+        state(_state),
+		params(dummy)
+{
+    _sem = hal.util->new_semaphore();
+}
+
+AP_RangeFinder_Backend::AP_RangeFinder_Backend(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params) :
+        state(_state),
+		params(_params)
 {
     _sem = hal.util->new_semaphore();    
 }
