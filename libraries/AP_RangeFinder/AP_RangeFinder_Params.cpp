@@ -127,5 +127,5 @@ const AP_Param::GroupInfo AP_RangeFinder_Params::var_info[] = {
 };
 
 AP_RangeFinder_Params::AP_RangeFinder_Params(void) {
-    return;
+    AP_Param::setup_object_defaults(this, var_info);
 }

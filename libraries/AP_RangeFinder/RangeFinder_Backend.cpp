@@ -19,12 +19,13 @@
 #include "RangeFinder_Backend.h"
 
 extern const AP_HAL::HAL& hal;
-AP_RangeFinder_Params &dummy = *(new AP_RangeFinder_Params());
+AP_RangeFinder_Params &dummy = *(new AP_RangeFinder_Params()); //TODO: remove this when possible.
 
 /*
   base class constructor. 
   This incorporates initialisation as well.
 */
+//TODO: remove this constructor when possible.
 AP_RangeFinder_Backend::AP_RangeFinder_Backend(RangeFinder::RangeFinder_State &_state) :
         state(_state),
 		params(dummy)
