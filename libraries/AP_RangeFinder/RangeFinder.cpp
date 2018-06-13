@@ -52,7 +52,7 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 
 	// @Group: _
 	// @Path: AP_RangeFinder_Params.cpp
-	AP_SUBGROUPINFO_FLAGS(_params[0], "_", 25, RangeFinder, AP_RangeFinder_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
+	AP_SUBGROUPINFO_FLAGS(params[0], "_", 25, RangeFinder, AP_RangeFinder_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
 
     // @Group: _
     // @Path: AP_RangeFinder_Wasp.cpp
@@ -61,49 +61,49 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 #if RANGEFINDER_MAX_INSTANCES > 1
     // @Group: 2_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[1], "2_", 26, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[1], "2_", 26, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 2
     // @Group: 3_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[2], "3_", 57, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[2], "3_", 57, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 3
     // @Group: 4_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[3], "4_", 58, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[3], "4_", 58, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 4
     // @Group: 5_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[4], "5_", 59, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[4], "5_", 59, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 5
     // @Group: 6_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[5], "6_", 60, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[5], "6_", 60, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 6
     // @Group: 7_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[6], "7_", 61, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[6], "7_", 61, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 7
     // @Group: 8_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[7], "8_", 62, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[7], "8_", 62, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 8
     // @Group: 9_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(_params[8], "9_", 63, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[8], "9_", 63, RangeFinder, AP_RangeFinder_Params),
 #endif
     
     AP_GROUPEND
@@ -120,7 +120,7 @@ RangeFinder::RangeFinder(AP_SerialManager &_serial_manager, enum Rotation orient
 
     // set orientation defaults
     for (uint8_t i=0; i<RANGEFINDER_MAX_INSTANCES; i++) {
-        state[i].orientation.set_default(orientation_default);
+        params[i].orientation.set_default(orientation_default);
     }
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
@@ -170,7 +170,7 @@ void RangeFinder::update(void)
 {
     for (uint8_t i=0; i<num_instances; i++) {
         if (drivers[i] != nullptr) {
-            if (state[i].type == RangeFinder_TYPE_NONE) {
+            if (params[i].type == RangeFinder_TYPE_NONE) {
                 // allow user to disable a rangefinder at runtime
                 state[i].status = RangeFinder_NotConnected;
                 state[i].range_valid_count = 0;
@@ -200,7 +200,7 @@ bool RangeFinder::_add_backend(AP_RangeFinder_Backend *backend)
  */
 void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
 {
-    enum RangeFinder_Type _type = (enum RangeFinder_Type)state[instance].type.get();
+    enum RangeFinder_Type _type = (enum RangeFinder_Type)params[instance].type.get();
     switch (_type) {
     case RangeFinder_TYPE_PLI2C:
     case RangeFinder_TYPE_PLI2CV3:
@@ -216,34 +216,34 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
         }
         break;
     case RangeFinder_TYPE_LWI2C:
-        if (state[instance].address) {
+        if (params[instance].address) {
 #ifdef HAL_RANGEFINDER_LIGHTWARE_I2C_BUS
             _add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
-                hal.i2c_mgr->get_device(HAL_RANGEFINDER_LIGHTWARE_I2C_BUS, state[instance].address)));
+                hal.i2c_mgr->get_device(HAL_RANGEFINDER_LIGHTWARE_I2C_BUS, params[instance].address)));
 #else
             if (!_add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
-                                                                  hal.i2c_mgr->get_device(1, state[instance].address)))) {
+                                                                  hal.i2c_mgr->get_device(1, params[instance].address)))) {
                 _add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
-                                                                 hal.i2c_mgr->get_device(0, state[instance].address)));
+                                                                 hal.i2c_mgr->get_device(0, params[instance].address)));
             }
 #endif
         }
         break;
     case RangeFinder_TYPE_TRI2C:
-        if (state[instance].address) {
+        if (params[instance].address) {
             if (!_add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance],
-                                                                   hal.i2c_mgr->get_device(1, state[instance].address)))) {
+                                                                   hal.i2c_mgr->get_device(1, params[instance].address)))) {
                 _add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance],
-                                                                  hal.i2c_mgr->get_device(0, state[instance].address)));
+                                                                  hal.i2c_mgr->get_device(0, params[instance].address)));
             }
         }
         break;
     case RangeFinder_TYPE_VL53L0X:
-    	if (state[instance].address) {
+    	if (params[instance].address) {
 			if (!_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance],
-															 hal.i2c_mgr->get_device(1, state[instance].address)))) {
+															 hal.i2c_mgr->get_device(1, params[instance].address)))) {
 				_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance],
-															hal.i2c_mgr->get_device(0, state[instance].address)));
+															hal.i2c_mgr->get_device(0, params[instance].address)));
 			}
     	}
         break;
@@ -297,7 +297,7 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
     case RangeFinder_TYPE_ANALOG:
         // note that analog will always come back as present if the pin is valid
         if (AP_RangeFinder_analog::detect(state[instance])) {
-            drivers[instance] = new AP_RangeFinder_analog(state[instance]);
+            drivers[instance] = new AP_RangeFinder_analog(state[instance], params[instance]);
         }
         break;
     case RangeFinder_TYPE_NMEA:
@@ -357,7 +357,7 @@ void RangeFinder::handle_msg(mavlink_message_t *msg)
 {
     uint8_t i;
     for (i=0; i<num_instances; i++) {
-        if ((drivers[i] != nullptr) && (state[i].type != RangeFinder_TYPE_NONE)) {
+        if ((drivers[i] != nullptr) && (params[i].type != RangeFinder_TYPE_NONE)) {
           drivers[i]->handle_msg(msg);
         }
     }
@@ -457,7 +457,7 @@ bool RangeFinder::pre_arm_check() const
 {
     for (uint8_t i=0; i<num_instances; i++) {
         // if driver is valid but pre_arm_check is false, return false
-        if ((drivers[i] != nullptr) && (state[i].type != RangeFinder_TYPE_NONE) && !state[i].pre_arm_check) {
+        if ((drivers[i] != nullptr) && (params[i].type != RangeFinder_TYPE_NONE) && !state[i].pre_arm_check) {
             return false;
         }
     }

@@ -90,21 +90,6 @@ public:
         uint16_t               pre_arm_distance_min;    // min distance captured during pre-arm checks
         uint16_t               pre_arm_distance_max;    // max distance captured during pre-arm checks
 
-        AP_Int8  type;
-        AP_Int8  pin;
-        AP_Int8  ratiometric;
-        AP_Int8  stop_pin;
-        AP_Int16 settle_time_ms;
-        AP_Float scaling;
-        AP_Float offset;
-        AP_Int8  function;
-        AP_Int16 min_distance_cm;
-        AP_Int16 max_distance_cm;
-        AP_Int8  ground_clearance_cm;
-        AP_Int8  address;
-        AP_Vector3f pos_offset; // position offset in body frame
-        AP_Int8  orientation;
-        const struct AP_Param::GroupInfo *var_info;
     };
 
     static const struct AP_Param::GroupInfo *backend_var_info[RANGEFINDER_MAX_INSTANCES];
@@ -168,7 +153,7 @@ public:
     static RangeFinder *get_singleton(void) { return _singleton; }
 
 protected:
-    AP_RangeFinder_Params _params[RANGEFINDER_MAX_INSTANCES];
+    AP_RangeFinder_Params params[RANGEFINDER_MAX_INSTANCES];
 
 private:
     static RangeFinder *_singleton;
