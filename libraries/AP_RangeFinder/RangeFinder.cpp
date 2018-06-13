@@ -52,7 +52,7 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 
 	// @Group: _
 	// @Path: AP_RangeFinder_Params.cpp
-	AP_SUBGROUPINFO_FLAGS(params[0], "_", 25, RangeFinder, AP_RangeFinder_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
+	AP_SUBGROUPINFO_FLAGS(params[0], "1_", 25, RangeFinder, AP_RangeFinder_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
 
     // @Group: _
     // @Path: AP_RangeFinder_Wasp.cpp
@@ -67,43 +67,43 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 #if RANGEFINDER_MAX_INSTANCES > 2
     // @Group: 3_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[2], "3_", 57, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[2], "3_", 27, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 3
     // @Group: 4_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[3], "4_", 58, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[3], "4_", 28, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 4
     // @Group: 5_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[4], "5_", 59, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[4], "5_", 29, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 5
     // @Group: 6_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[5], "6_", 60, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[5], "6_", 30, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 6
     // @Group: 7_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[6], "7_", 61, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[6], "7_", 31, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 7
     // @Group: 8_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[7], "8_", 62, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[7], "8_", 32, RangeFinder, AP_RangeFinder_Params),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 8
     // @Group: 9_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[8], "9_", 63, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[8], "9_", 33, RangeFinder, AP_RangeFinder_Params),
 #endif
     
     AP_GROUPEND
@@ -204,14 +204,14 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
     switch (_type) {
     case RangeFinder_TYPE_PLI2C:
     case RangeFinder_TYPE_PLI2CV3:
-        if (!_add_backend(AP_RangeFinder_PulsedLightLRF::detect(1, state[instance], _type))) {
-            _add_backend(AP_RangeFinder_PulsedLightLRF::detect(0, state[instance], _type));
+        if (!_add_backend(AP_RangeFinder_PulsedLightLRF::detect(1, state[instance], params[instance], _type))) {
+            _add_backend(AP_RangeFinder_PulsedLightLRF::detect(0, state[instance], params[instance], _type));
         }
         break;
     case RangeFinder_TYPE_MBI2C:
-        if (!_add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance],
+        if (!_add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance], params[instance],
                                                 hal.i2c_mgr->get_device(1, AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR)))) {
-            _add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance],
+            _add_backend(AP_RangeFinder_MaxsonarI2CXL::detect(state[instance], params[instance],
                                                hal.i2c_mgr->get_device(0, AP_RANGE_FINDER_MAXSONARI2CXL_DEFAULT_ADDR)));
         }
         break;
@@ -221,9 +221,9 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
             _add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
                 hal.i2c_mgr->get_device(HAL_RANGEFINDER_LIGHTWARE_I2C_BUS, params[instance].address)));
 #else
-            if (!_add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
+            if (!_add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance], params[instance],
                                                                   hal.i2c_mgr->get_device(1, params[instance].address)))) {
-                _add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance],
+                _add_backend(AP_RangeFinder_LightWareI2C::detect(state[instance], params[instance],
                                                                  hal.i2c_mgr->get_device(0, params[instance].address)));
             }
 #endif
@@ -231,18 +231,18 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
         break;
     case RangeFinder_TYPE_TRI2C:
         if (params[instance].address) {
-            if (!_add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance],
+            if (!_add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance], params[instance],
                                                                    hal.i2c_mgr->get_device(1, params[instance].address)))) {
-                _add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance],
+                _add_backend(AP_RangeFinder_TeraRangerI2C::detect(state[instance], params[instance],
                                                                   hal.i2c_mgr->get_device(0, params[instance].address)));
             }
         }
         break;
     case RangeFinder_TYPE_VL53L0X:
     	if (params[instance].address) {
-			if (!_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance],
+			if (!_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance], params[instance],
 															 hal.i2c_mgr->get_device(1, params[instance].address)))) {
-				_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance],
+				_add_backend(AP_RangeFinder_VL53L0X::detect(state[instance], params[instance],
 															hal.i2c_mgr->get_device(0, params[instance].address)));
 			}
     	}
@@ -263,17 +263,17 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
 #endif
     case RangeFinder_TYPE_LWSER:
         if (AP_RangeFinder_LightWareSerial::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_LightWareSerial(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_LightWareSerial(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
     case RangeFinder_TYPE_LEDDARONE:
         if (AP_RangeFinder_LeddarOne::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_LeddarOne(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_LeddarOne(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
     case RangeFinder_TYPE_ULANDING:
         if (AP_RangeFinder_uLanding::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_uLanding(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_uLanding(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
 #if (CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_BEBOP || \
@@ -286,12 +286,12 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
 #endif
     case RangeFinder_TYPE_MAVLink:
         if (AP_RangeFinder_MAVLink::detect()) {
-            drivers[instance] = new AP_RangeFinder_MAVLink(state[instance]);
+            drivers[instance] = new AP_RangeFinder_MAVLink(state[instance], params[instance]);
         }
         break;
     case RangeFinder_TYPE_MBSER:
         if (AP_RangeFinder_MaxsonarSerialLV::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_MaxsonarSerialLV(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_MaxsonarSerialLV(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
     case RangeFinder_TYPE_ANALOG:

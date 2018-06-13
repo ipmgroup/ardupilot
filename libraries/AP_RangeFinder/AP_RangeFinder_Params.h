@@ -13,7 +13,7 @@ public:
     AP_RangeFinder_Params(const AP_RangeFinder_Params &other) = delete;
     AP_RangeFinder_Params &operator=(const AP_RangeFinder_Params&) = delete;
     
-private:
+//private:
     AP_Int8  type;
     AP_Int8  pin;
     AP_Int8  ratiometric;

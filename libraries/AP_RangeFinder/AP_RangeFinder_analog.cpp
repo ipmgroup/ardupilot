@@ -22,7 +22,7 @@
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
 #include "RangeFinder.h"
-#include "RangeFinder_Params.h"
+#include "AP_RangeFinder_Params.h"
 #include "AP_RangeFinder_analog.h"
 
 extern const AP_HAL::HAL& hal;
@@ -33,8 +33,7 @@ extern const AP_HAL::HAL& hal;
    already know that we should setup the rangefinder
 */
 AP_RangeFinder_analog::AP_RangeFinder_analog(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params) :
-    AP_RangeFinder_Backend(_state),
-    AP_RangeFinder_Params(_params)
+    AP_RangeFinder_Backend(_state, _params)
 {
     source = hal.analogin->channel(_params.pin);
     if (source == nullptr) {
