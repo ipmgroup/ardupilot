@@ -296,28 +296,28 @@ void RangeFinder::detect_instance(uint8_t instance, uint8_t& serial_instance)
         break;
     case RangeFinder_TYPE_ANALOG:
         // note that analog will always come back as present if the pin is valid
-        if (AP_RangeFinder_analog::detect(state[instance])) {
+        if (AP_RangeFinder_analog::detect(params[instance])) {
             drivers[instance] = new AP_RangeFinder_analog(state[instance], params[instance]);
         }
         break;
     case RangeFinder_TYPE_NMEA:
         if (AP_RangeFinder_NMEA::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_NMEA(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_NMEA(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
     case RangeFinder_TYPE_WASP:
         if (AP_RangeFinder_Wasp::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_Wasp(state[instance], serial_manager, serial_instance++);
+            drivers[instance] = new AP_RangeFinder_Wasp(state[instance], params[instance], serial_manager, serial_instance++);
         }
         break;
     case RangeFinder_TYPE_BenewakeTF02:
         if (AP_RangeFinder_Benewake::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_Benewake(state[instance], serial_manager, serial_instance++, AP_RangeFinder_Benewake::BENEWAKE_TF02);
+            drivers[instance] = new AP_RangeFinder_Benewake(state[instance], params[instance], serial_manager, serial_instance++, AP_RangeFinder_Benewake::BENEWAKE_TF02);
         }
         break;
     case RangeFinder_TYPE_BenewakeTFmini:
         if (AP_RangeFinder_Benewake::detect(serial_manager, serial_instance)) {
-            drivers[instance] = new AP_RangeFinder_Benewake(state[instance], serial_manager, serial_instance++, AP_RangeFinder_Benewake::BENEWAKE_TFmini);
+            drivers[instance] = new AP_RangeFinder_Benewake(state[instance], params[instance], serial_manager, serial_instance++, AP_RangeFinder_Benewake::BENEWAKE_TFmini);
         }
         break;
     default:
