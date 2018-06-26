@@ -109,7 +109,7 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 #if RANGEFINDER_MAX_INSTANCES > 9
     // @Group: A_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[8], "A_", 34, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[9], "A_", 34, RangeFinder, AP_RangeFinder_Params),
 #endif
     
     AP_GROUPEND
