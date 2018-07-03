@@ -54,62 +54,98 @@ const AP_Param::GroupInfo RangeFinder::var_info[] = {
 	// @Path: AP_RangeFinder_Params.cpp
 	AP_SUBGROUPINFO_FLAGS(params[0], "1_", 25, RangeFinder, AP_RangeFinder_Params, AP_PARAM_FLAG_IGNORE_ENABLE),
 
-    // @Group: _
+    // @Group: 1_
     // @Path: AP_RangeFinder_Wasp.cpp
-    AP_SUBGROUPVARPTR(drivers[0], "_",  57, RangeFinder, backend_var_info[0]),
+    AP_SUBGROUPVARPTR(drivers[0], "1_",  26, RangeFinder, backend_var_info[0]),
 
 #if RANGEFINDER_MAX_INSTANCES > 1
     // @Group: 2_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[1], "2_", 26, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[1], "2_", 27, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 2_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[1], "2_",  28, RangeFinder, backend_var_info[1]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 2
     // @Group: 3_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[2], "3_", 27, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[2], "3_", 29, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 3_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[2], "3_",  30, RangeFinder, backend_var_info[2]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 3
     // @Group: 4_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[3], "4_", 28, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[3], "4_", 31, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 4_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[0], "4_",  32, RangeFinder, backend_var_info[3]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 4
     // @Group: 5_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[4], "5_", 29, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[4], "5_", 33, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 5_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[4], "5_",  34, RangeFinder, backend_var_info[4]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 5
     // @Group: 6_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[5], "6_", 30, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[5], "6_", 35, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 6_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[5], "6_",  36, RangeFinder, backend_var_info[5]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 6
     // @Group: 7_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[6], "7_", 31, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[6], "7_", 37, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 7_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[6], "7_",  38, RangeFinder, backend_var_info[6]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 7
     // @Group: 8_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[7], "8_", 32, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[7], "8_", 39, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 8_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[7], "8_",  40, RangeFinder, backend_var_info[7]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 8
     // @Group: 9_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[8], "9_", 33, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[8], "9_", 41, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: 9_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[8], "9_",  42, RangeFinder, backend_var_info[8]),
 #endif
 
 #if RANGEFINDER_MAX_INSTANCES > 9
     // @Group: A_
     // @Path: AP_RangeFinder_Params.cpp
-    AP_SUBGROUPINFO(params[9], "A_", 34, RangeFinder, AP_RangeFinder_Params),
+    AP_SUBGROUPINFO(params[9], "A_", 43, RangeFinder, AP_RangeFinder_Params),
+
+    // @Group: A_
+    // @Path: AP_RangeFinder_Wasp.cpp
+    AP_SUBGROUPVARPTR(drivers[9], "A_",  44, RangeFinder, backend_var_info[9]),
 #endif
     
     AP_GROUPEND
