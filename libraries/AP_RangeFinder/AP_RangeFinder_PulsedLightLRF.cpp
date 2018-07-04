@@ -46,8 +46,9 @@ extern const AP_HAL::HAL& hal;
 */
 AP_RangeFinder_PulsedLightLRF::AP_RangeFinder_PulsedLightLRF(uint8_t bus,
                                                              RangeFinder::RangeFinder_State &_state,
+															 AP_RangeFinder_Params &_params,
                                                              RangeFinder::RangeFinder_Type _rftype)
-    : AP_RangeFinder_Backend(_state)
+    : AP_RangeFinder_Backend(_state, _params)
     , _dev(hal.i2c_mgr->get_device(bus, LL40LS_ADDR))
     , rftype(_rftype)
 {
@@ -59,10 +60,11 @@ AP_RangeFinder_PulsedLightLRF::AP_RangeFinder_PulsedLightLRF(uint8_t bus,
 */
 AP_RangeFinder_Backend *AP_RangeFinder_PulsedLightLRF::detect(uint8_t bus,
                                                               RangeFinder::RangeFinder_State &_state,
+															  AP_RangeFinder_Params &_params,
                                                               RangeFinder::RangeFinder_Type rftype)
 {
     AP_RangeFinder_PulsedLightLRF *sensor
-        = new AP_RangeFinder_PulsedLightLRF(bus, _state, rftype);
+        = new AP_RangeFinder_PulsedLightLRF(bus, _state, _params, rftype);
     if (!sensor ||
         !sensor->init()) {
         delete sensor;
