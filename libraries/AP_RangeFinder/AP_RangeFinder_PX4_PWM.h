@@ -21,7 +21,7 @@ class AP_RangeFinder_PX4_PWM : public AP_RangeFinder_Backend
 {
 public:
     // constructor
-    AP_RangeFinder_PX4_PWM(RangeFinder::RangeFinder_State &_state, AP_Int16 &powersave_range, float &_estimated_terrain_height);
+    AP_RangeFinder_PX4_PWM(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params, AP_Int16 &powersave_range, float &_estimated_terrain_height);
 
     // destructor
     ~AP_RangeFinder_PX4_PWM(void);
