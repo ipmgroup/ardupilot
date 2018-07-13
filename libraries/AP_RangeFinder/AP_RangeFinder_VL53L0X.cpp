@@ -28,6 +28,16 @@
 
 extern const AP_HAL::HAL& hal;
 
+const AP_Param::GroupInfo AP_RangeFinder_VL53L0X::var_info[] = {
+    // @Param: ADDR
+    // @DisplayName: Bus address of sensor
+    // @Description: This sets the bus address of the sensor, where applicable. Used for the LightWare I2C sensor to allow for multiple sensors on different addresses. A value of 0 disables the sensor.
+    // @Range: 0 127
+    // @Increment: 1
+    // @User: Standard
+    AP_GROUPINFO("ADDR", 0, AP_RangeFinder_Params, address, 0),
+};
+
 enum regAddr
 {
       SYSRANGE_START                              = 0x00,
@@ -218,7 +228,13 @@ const AP_RangeFinder_VL53L0X::RegData AP_RangeFinder_VL53L0X::tuning_data[] =
 */
 AP_RangeFinder_VL53L0X::AP_RangeFinder_VL53L0X(RangeFinder::RangeFinder_State &_state, AP_RangeFinder_Params &_params, AP_HAL::OwnPtr<AP_HAL::I2CDevice> _dev)
     : AP_RangeFinder_Backend(_state, _params)
-    , dev(std::move(_dev)) {}
+    , dev(std::move(_dev)) {
+
+    AP_Param::setup_object_defaults(this, var_info);
+
+    // register driver specific parameters
+    state.var_info = var_info;
+}
 
 
 /*

@@ -6,6 +6,7 @@
 
 class AP_RangeFinder_VL53L0X : public AP_RangeFinder_Backend
 {
+    friend class RangeFinder;
 
 public:
     // static detection function
@@ -13,6 +14,8 @@ public:
 
     // update state
     void update(void);
+
+    static const struct AP_Param::GroupInfo var_info[];
 
 protected:
 
@@ -79,4 +82,7 @@ private:
 
     uint32_t sum_mm;
     uint32_t counter;
+
+    // Params
+    AP_Int8  address;
 };
