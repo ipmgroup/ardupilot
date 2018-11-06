@@ -36,6 +36,7 @@
 #endif
 
 #include <AP_UAVCAN/AP_UAVCAN.h>
+#include <AP_CANopen/AP_CANopen.h>
 
 extern const AP_HAL::HAL& hal;
 

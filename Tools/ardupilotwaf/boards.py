@@ -172,6 +172,7 @@ class Board:
 
         if self.with_uavcan:
             env.AP_LIBRARIES += [
+                'AP_CANopen',
                 'AP_UAVCAN',
                 'modules/uavcan/libuavcan/src/**/*.cpp'
                 ]

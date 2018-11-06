@@ -25,6 +25,7 @@ public:
     enum Protocol_Type : uint8_t {
         Protocol_Type_None = 0,
         Protocol_Type_UAVCAN = 1,
+        Protocol_Type_CANOPEN = 3,
     };
 
     void init(void);

@@ -25,6 +25,7 @@
 
 #if HAL_WITH_UAVCAN
 #include <AP_UAVCAN/AP_UAVCAN.h>
+#include <AP_CANopen/AP_CANopen.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_LINUX
 #include <AP_HAL_Linux/CAN.h>
 #endif

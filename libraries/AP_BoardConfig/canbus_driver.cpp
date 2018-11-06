@@ -18,6 +18,7 @@
 #if HAL_WITH_UAVCAN
 #include "AP_BoardConfig_CAN.h"
 #include <AP_UAVCAN/AP_UAVCAN.h>
+#include <AP_CANopen/AP_CANopen.h>
 
 // table of user settable CAN bus parameters
 const AP_Param::GroupInfo AP_BoardConfig_CAN::Driver::var_info[] = {
@@ -32,6 +33,10 @@ const AP_Param::GroupInfo AP_BoardConfig_CAN::Driver::var_info[] = {
     // @Group: UC_
     // @Path: ../AP_UAVCAN/AP_UAVCAN.cpp
     AP_SUBGROUPPTR(_driver, "UC_", 2, AP_BoardConfig_CAN::Driver, AP_UAVCAN),
+
+    // @Group: CO
+    // @Path: ../AP_CANopen/AP_CANopen.cpp
+    AP_SUBGROUPPTR(_driver, "CO_", 3, AP_BoardConfig_CAN::Driver, AP_CANopen),
 
     AP_GROUPEND
 };
