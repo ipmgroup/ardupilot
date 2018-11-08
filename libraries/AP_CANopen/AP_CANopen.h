@@ -76,6 +76,7 @@ private:
 
     uint8_t _srv_node_cnt;
 
+	char _thread_name[12];
     bool _initialized;
     uint8_t _srv_armed;
     uint32_t _srv_last_send_us;

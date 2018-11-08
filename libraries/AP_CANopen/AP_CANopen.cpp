@@ -121,9 +121,14 @@ void AP_CANopen::init(uint8_t driver_index)
 	_driver_index = driver_index;
 	
     if (hal.can_mgr[_driver_index] != nullptr && hal.can_mgr[_driver_index]->is_initialized()) {
-		_initialized = true;
 		node_discovery();
-    } else {
+		snprintf(_thread_name, sizeof(_thread_name), "canopen_%u", driver_index);
+		if (hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_CANopen::loop, void), _thread_name, 4096, AP_HAL::Scheduler::PRIORITY_CAN, 0)) {
+	        _initialized = true;
+	    } else {
+	    	_initialized = false;
+	    }
+	} else {
     	_initialized = false;
     }
 }
