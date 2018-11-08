@@ -148,6 +148,17 @@ void AP_BoardConfig_CAN::init()
                 AP_Param::load_object_from_eeprom(_drivers[i]._driver, AP_UAVCAN::var_info);
 
                 _drivers[i]._driver->init(i);
+            } else if (prot_type == Protocol_Type_CANOPEN) {
+                _drivers[i]._driver = new AP_CANopen;
+
+                if (_drivers[i]._driver == nullptr) {
+                    AP_HAL::panic("Failed to allocate uavcan %d\n\r", i + 1);
+                    continue;
+                }
+
+                AP_Param::load_object_from_eeprom(_drivers[i]._driver, AP_CANopen::var_info);
+
+                _drivers[i]._driver->init(i);
             }
         }
     }

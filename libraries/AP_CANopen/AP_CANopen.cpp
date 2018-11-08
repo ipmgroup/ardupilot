@@ -122,6 +122,7 @@ void AP_CANopen::init(uint8_t driver_index)
 	
     if (hal.can_mgr[_driver_index] != nullptr && hal.can_mgr[_driver_index]->is_initialized()) {
 		_initialized = true;
+		node_discovery();
     } else {
     	_initialized = false;
     }
