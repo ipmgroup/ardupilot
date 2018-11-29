@@ -39,11 +39,10 @@ public:
 
     static const struct AP_Param::GroupInfo var_info[];
 
-    // synchronization for RC output
     bool srv_sem_take();
     void srv_sem_give();
 
-    // output from do_cyclic
+    // output from loop()
     void srv_send_actuator();
     void srv_send_esc();
 

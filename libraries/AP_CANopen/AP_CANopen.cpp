@@ -172,24 +172,11 @@ uint8_t AP_CANopen::get_node_count(){
 	return _srv_node_cnt;
 }
 
-bool AP_CANopen::srv_sem_take()
-{
-    bool sem_ret = SRV_sem->take(10);
-//     if (!sem_ret) {
-//         debug_canopen(1, "AP_CANopen SRV semaphore fail\n\r");
-//     }
-    return sem_ret;
-}
-
-void AP_CANopen::srv_sem_give()
-{
-    SRV_sem->give();
-}
-
 void AP_CANopen::srv_send_actuator(void)
 {
 	//printf("srv_send_actuator()\n");
 	for(int i = 0; i < _srv_node_cnt; i++){
+		WITH_SEMAPHORE(SRV_sem);
 		if(_srv_conf[i].servo_pending && (((uint32_t)1) << i) & _servo_bm){
 			CAN_Data data;
 
@@ -200,7 +187,7 @@ void AP_CANopen::srv_send_actuator(void)
 			uint32_t id = 0x300 | _srv_conf[i].id;
 			hal.scheduler->delay_microseconds(1);
 			send_raw_packet(id, data.ui8, 8);
-			hal.scheduler->delay_microseconds(500);
+			hal.scheduler->delay_microseconds(500); // TODO: investigate why this is needed.
 		}
 	}
 }
@@ -214,6 +201,8 @@ void AP_CANopen::srv_send_esc(void)
     for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
         if ((((uint32_t) 1) << i) & _esc_bm) {
             max_esc_num = i + 1;
+            
+            WITH_SEMAPHORE(SRV_sem);
             if (_srv_conf[i].esc_pending) {
                 active_esc_num++;
             }
@@ -228,6 +217,7 @@ void AP_CANopen::srv_send_esc(void)
     		if ((((uint32_t) 1) << i) & _esc_bm && i < _srv_node_cnt) {
     			CAN_Data data;
 
+				WITH_SEMAPHORE(SRV_sem);
     			int32_t rpm = ppm_to_rpm(_srv_conf[i].pulse);
     			data.i32[0] = _rpmps;
     			data.i32[1] = rpm;
@@ -284,7 +274,7 @@ void AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
         len = 8;
     }
 
-    uavcan::CanFrame frm((id), data, len); //& uavcan::CanFrame::MaskStdID
+    uavcan::CanFrame frm((id), data, len);
     uavcan::MonotonicDuration dur;
     dur = dur.fromMSec(100);
     uavcan::MonotonicTime ddt = SystemClock::instance().getMonotonic() + dur;
@@ -333,33 +323,32 @@ void AP_CANopen::recv_telem(){
 			uint16_t pdoid = recv_frame.id & 0xFF80;
 			uint8_t nodeid = recv_frame.id & 0x7F;
 			
-			if (!_telem_sem->take(1)) {
-		        return;
-		    }
-			
-			switch (pdoid) {
-				case 0x180:
-					// statusword
-					break;
-				case 0x280:
-					// rpm
-					_srv_conf[_discovered_nodes[nodeid]].pulse_read = rpm_to_ppm(pdo.i32[0]);
-					_telemetry[_discovered_nodes[nodeid]].rpm = pdo.i32[0];
-					break;
-				case 0x380:
-					// volatage, current, temperature
-					_telemetry[_discovered_nodes[nodeid]].voltage = pdo.ui16[0];
-					_telemetry[_discovered_nodes[nodeid]].current = pdo.ui16[1];
-					_telemetry[_discovered_nodes[nodeid]].temp = pdo.ui16[2];
-					break;
-				case 0x480:
-					// status registers
-					break;
-				default:
-					break;
+			// Creating scope to make sure the semaphore is released as soon as it's no longer needed.
+			{
+				WITH_SEMAPHORE(_telem_sem);
+				
+				switch (pdoid) {
+					case 0x180:
+						// statusword
+						break;
+					case 0x280:
+						// rpm
+						_srv_conf[_discovered_nodes[nodeid]].pulse_read = rpm_to_ppm(pdo.i32[0]);
+						_telemetry[_discovered_nodes[nodeid]].rpm = pdo.i32[0];
+						break;
+					case 0x380:
+						// volatage, current, temperature
+						_telemetry[_discovered_nodes[nodeid]].voltage = pdo.ui16[0];
+						_telemetry[_discovered_nodes[nodeid]].current = pdo.ui16[1];
+						_telemetry[_discovered_nodes[nodeid]].temp = pdo.ui16[2];
+						break;
+					case 0x480:
+						// status registers
+						break;
+					default:
+						break;
+				}
 			}
-			
-			_telem_sem->give();
 
 			recv = recv_raw_packet(recv_frame);
 		}
@@ -376,9 +365,8 @@ void AP_CANopen::recv_telem(){
 uint16_t AP_CANopen::get_ppm(uint8_t ch){
 	uint16_t ppm = 0;
 
-	srv_sem_take();
+	WITH_SEMAPHORE(SRV_sem);
 	ppm = _srv_conf[ch].pulse_read;
-	srv_sem_give();
 
 	return ppm;
 }
@@ -454,6 +442,7 @@ void AP_CANopen::srv_arm_actuators(bool arm)
 
 void AP_CANopen::srv_write(uint16_t pulse_len, uint8_t ch)
 {
+	WITH_SEMAPHORE(SRV_sem);
     _srv_conf[ch].pulse = pulse_len;
     _srv_conf[ch].servo_pending = true;
     _srv_conf[ch].esc_pending = true;
@@ -470,8 +459,6 @@ AP_CANopen* AP_CANopen::get_canopen(uint8_t driver_index)
 
 void AP_CANopen::SRV_push_servos()
 {
-    SRV_sem->take_blocking();
-
     for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++) {
         // Check if this channels has any function assigned
         if (SRV_Channels::channel_function(i)) {
@@ -479,21 +466,17 @@ void AP_CANopen::SRV_push_servos()
         }
     }
 
-    SRV_sem->give();
-
     _srv_armed = hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED;
 }
 
 void AP_CANopen::send_mavlink(uint8_t ch) {
 	telemetry_info_t telem_buffer[CANOPEN_SRV_NUMBER];
-	
-	if (!_telem_sem->take(1)) {
-        return;
+    
+    // Creating scope to make sure the semaphore is released as soon as it's no longer needed.
+    {
+    	WITH_SEMAPHORE(_telem_sem);
+    	memcpy(telem_buffer, _telemetry, sizeof(telemetry_info_t) * CANOPEN_SRV_NUMBER);
     }
-    
-    memcpy(telem_buffer, _telemetry, sizeof(telemetry_info_t) * CANOPEN_SRV_NUMBER);
-    
-    _telem_sem->give();
     
     uint16_t voltage[4] {};
     uint16_t current[4] {};
