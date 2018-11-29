@@ -22,7 +22,7 @@
 
 extern const AP_HAL::HAL& hal;
 
-//#define debug_canopen(level, fmt, args...) do { if ((level) <= AP_BoardConfig_CAN::get_debug_level()) { hal.console->printf(fmt, ##args); }} while (0)
+#define debug_can(level_debug, fmt, args...) do { if ((level_debug) <= AP::can().get_debug_level_driver(_driver_index)) { printf(fmt, ##args); }} while (0)
 
 // Translation of all messages from CANopen structures into AP structures is done
 // in AP_CANopen and not in corresponding drivers.
@@ -108,8 +108,9 @@ AP_CANopen::AP_CANopen() :
     _last_sync = _last_sync.fromUSec(0);
 
     SRV_sem = hal.util->new_semaphore();
+    _telem_sem = hal.util->new_semaphore();
 
-    //debug_canopen(2, "AP_CANopen constructed\n\r");
+    //debug_can(2, "AP_CANopen constructed\n\r");
 }
 
 AP_CANopen::~AP_CANopen()
@@ -120,7 +121,7 @@ void AP_CANopen::init(uint8_t driver_index)
 {
 	_driver_index = driver_index;
 	
-    if (hal.can_mgr[_driver_index] != nullptr && hal.can_mgr[_driver_index]->is_initialized()) {
+    if (hal.can_mgr[_driver_index] != nullptr && hal.can_mgr[_driver_index]->is_initialized() && hal.can_mgr[_driver_index]->get_driver() != nullptr) {
 		node_discovery();
 		snprintf(_thread_name, sizeof(_thread_name), "canopen_%u", driver_index);
 		if (hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_CANopen::loop, void), _thread_name, 4096, AP_HAL::Scheduler::PRIORITY_CAN, 0)) {
@@ -171,7 +172,7 @@ uint8_t AP_CANopen::get_node_count(){
 	return _srv_node_cnt;
 }
 
-bool AP_CANopen::rc_out_sem_take()
+bool AP_CANopen::srv_sem_take()
 {
     bool sem_ret = SRV_sem->take(10);
 //     if (!sem_ret) {
@@ -180,7 +181,7 @@ bool AP_CANopen::rc_out_sem_take()
     return sem_ret;
 }
 
-void AP_CANopen::rc_out_sem_give()
+void AP_CANopen::srv_sem_give()
 {
     SRV_sem->give();
 }
@@ -197,6 +198,7 @@ void AP_CANopen::srv_send_actuator(void)
 			data.i32[1] = rpm;
 			_srv_conf[i].servo_pending = false;
 			uint32_t id = 0x300 | _srv_conf[i].id;
+			hal.scheduler->delay_microseconds(1);
 			send_raw_packet(id, data.ui8, 8);
 			hal.scheduler->delay_microseconds(500);
 		}
@@ -263,10 +265,6 @@ void AP_CANopen::loop(void)
 					_srv_last_send_us = now;
 					srv_send_actuator();
 					sent_servos = true;
-// 					for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
-// 						// mark as transmitted
-// 						_srv_conf[i].servo_pending = false;
-// 					}
 				}
 			}
 
@@ -274,13 +272,8 @@ void AP_CANopen::loop(void)
 			if (_esc_bm > 0 && !sent_servos) {
 				srv_send_esc();
 			}
-			
-// 			for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
-// 				// mark as transmitted
-// 				_srv_conf[i].esc_pending = false;
-// 			}
 
-			recv_ppm();
+			recv_telem();
 		}
 	}
 }
@@ -318,7 +311,7 @@ int AP_CANopen::recv_raw_packet(uavcan::CanFrame& recv_frame)
     return recv;
 }
 
-int AP_CANopen::recv_ppm(){
+void AP_CANopen::recv_telem(){
 	uint8_t data[8] = {0x00};
 
 	uavcan::MonotonicTime now = SystemClock::instance().getMonotonic();
@@ -335,29 +328,57 @@ int AP_CANopen::recv_ppm(){
 		uavcan::CanFrame recv_frame;
 		CAN_Data pdo;
 		int recv = recv_raw_packet(recv_frame);
-		while(recv > 0 && (recv_frame.id & 0xFF80) == 0x280){
+		while(recv > 0){
 			memcpy(pdo.ui8, recv_frame.data, sizeof(pdo.ui8));
-
-			_srv_conf[_discovered_nodes[recv_frame.id&0x7F]].pulse_read = rpm_to_ppm(pdo.i32[0]);
+			uint16_t pdoid = recv_frame.id & 0xFF80;
+			uint8_t nodeid = recv_frame.id & 0x7F;
+			
+			if (!_telem_sem->take(1)) {
+		        return;
+		    }
+			
+			switch (pdoid) {
+				case 0x180:
+					// statusword
+					break;
+				case 0x280:
+					// rpm
+					_srv_conf[_discovered_nodes[nodeid]].pulse_read = rpm_to_ppm(pdo.i32[0]);
+					_telemetry[_discovered_nodes[nodeid]].rpm = pdo.i32[0];
+					break;
+				case 0x380:
+					// volatage, current, temperature
+					_telemetry[_discovered_nodes[nodeid]].voltage = pdo.ui16[0];
+					_telemetry[_discovered_nodes[nodeid]].current = pdo.ui16[1];
+					_telemetry[_discovered_nodes[nodeid]].temp = pdo.ui16[2];
+					break;
+				case 0x480:
+					// status registers
+					break;
+				default:
+					break;
+			}
+			
+			_telem_sem->give();
 
 			recv = recv_raw_packet(recv_frame);
 		}
-		//printf("motor 1 ppm: %d\n", _srv_conf[0].pulse_read);
-		return recv;
+		//printf("motor ppm: %d %d %d %d\n", _srv_conf[0].pulse_read, _srv_conf[1].pulse_read, _srv_conf[2].pulse_read, _srv_conf[3].pulse_read);
+		return;
 	}else{
 		for(int i = 0; i < _srv_node_cnt; i++){
 			_srv_conf[i].pulse_read = _srv_conf[i].pulse;
 		}
-		return 0;
+		return;
 	}
 }
 
 uint16_t AP_CANopen::get_ppm(uint8_t ch){
 	uint16_t ppm = 0;
 
-	rc_out_sem_take();
+	srv_sem_take();
 	ppm = _srv_conf[ch].pulse_read;
-	rc_out_sem_give();
+	srv_sem_give();
 
 	return ppm;
 }
@@ -461,6 +482,46 @@ void AP_CANopen::SRV_push_servos()
     SRV_sem->give();
 
     _srv_armed = hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED;
+}
+
+void AP_CANopen::send_mavlink(uint8_t ch) {
+	telemetry_info_t telem_buffer[CANOPEN_SRV_NUMBER];
+	
+	if (!_telem_sem->take(1)) {
+        return;
+    }
+    
+    memcpy(telem_buffer, _telemetry, sizeof(telemetry_info_t) * CANOPEN_SRV_NUMBER);
+    
+    _telem_sem->give();
+    
+    uint16_t voltage[4] {};
+    uint16_t current[4] {};
+    uint16_t rpm[4] {};
+    uint8_t temperature[4] {};
+    uint16_t totalcurrent[4] {};
+    uint16_t count[4] {};
+    
+    for (uint8_t i = 0; i < _srv_node_cnt && i < 8; i++) {
+        uint8_t idx = i % 4;
+        
+        voltage[idx]      = telem_buffer[i].voltage;
+        current[idx]      = telem_buffer[i].current;
+        rpm[idx]          = telem_buffer[i].rpm;
+        temperature[idx]  = telem_buffer[i].temp;
+
+        if (idx == 3 || i == _srv_node_cnt - 1) {
+            if (!HAVE_PAYLOAD_SPACE((mavlink_channel_t)ch, ESC_TELEMETRY_1_TO_4)) {
+                return;
+            }
+
+            if (i < 4) {
+                mavlink_msg_esc_telemetry_1_to_4_send((mavlink_channel_t)ch, temperature, voltage, current, totalcurrent, rpm, count);
+            } else {
+                mavlink_msg_esc_telemetry_5_to_8_send((mavlink_channel_t)ch, temperature, voltage, current, totalcurrent, rpm, count);
+            }
+        }
+    }
 }
 
 #endif // HAL_WITH_CANOPEN

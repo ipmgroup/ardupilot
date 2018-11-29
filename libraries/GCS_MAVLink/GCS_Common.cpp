@@ -43,6 +43,11 @@
 #include <SITL/SITL.h>
 #endif
 
+#ifdef HAL_WITH_UAVCAN
+#include <AP_BoardConfig/AP_BoardConfig_CAN.h>
+#include <AP_CANopen/AP_CANopen.h>
+#endif
+
 extern const AP_HAL::HAL& hal;
 
 uint32_t GCS_MAVLINK::last_radio_status_remrssi_ms;
@@ -3111,6 +3116,25 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
         AP_BLHeli *blheli = AP_BLHeli::get_singleton();
         if (blheli) {
             blheli->send_esc_telemetry_mavlink(uint8_t(chan));
+        }
+#endif
+#ifdef HAL_WITH_UAVCAN
+		uint8_t num_drivers = AP::can().get_num_drivers();
+		
+		for (uint8_t i = 0; i < num_drivers; i++) {
+            switch (AP::can().get_protocol_type(i)) {
+                case AP_BoardConfig_CAN::Protocol_Type_CANOPEN: {
+                    AP_CANopen *ap_canopen = AP_CANopen::get_canopen(i);
+                    if (ap_canopen != nullptr) {
+                        ap_canopen->send_mavlink(uint8_t(chan));
+                    }
+                    break;
+                }
+                case AP_BoardConfig_CAN::Protocol_Type_UAVCAN:
+                case AP_BoardConfig_CAN::Protocol_Type_None:
+                default:
+                    break;
+            }
         }
 #endif
         break;

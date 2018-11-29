@@ -40,8 +40,8 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
 
     // synchronization for RC output
-    bool rc_out_sem_take();
-    void rc_out_sem_give();
+    bool srv_sem_take();
+    void srv_sem_give();
 
     // output from do_cyclic
     void srv_send_actuator();
@@ -71,6 +71,15 @@ private:
         bool esc_pending;
         uint16_t pulse_read; // Contains the value received from the controllers.
     } _srv_conf[CANOPEN_SRV_NUMBER];
+    
+    struct telemetry_info_t {
+        uint64_t time;
+        uint16_t voltage;
+        uint16_t current;
+        uint16_t rpm;
+        uint8_t temp;
+        bool new_data;
+    } _telemetry[CANOPEN_SRV_NUMBER];
 
     std::map<uint8_t, uint8_t> _discovered_nodes; // Used for discovery and reverse search. Key is node ID, value is position in _srv_conf.
 
@@ -83,12 +92,13 @@ private:
     uint8_t _srv_safety;
 
     AP_HAL::Semaphore *SRV_sem;
+    AP_HAL::Semaphore *_telem_sem;
 
     uavcan::MonotonicTime _last_sync;
 
     void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
     int recv_raw_packet(uavcan::CanFrame& recv_frame);
-    int recv_ppm();
+    void recv_telem();
     int32_t ppm_to_rpm(int ppm);
     uint16_t rpm_to_ppm(int32_t);
 
@@ -162,7 +172,7 @@ public:
     void srv_write(uint16_t pulse_len, uint8_t ch);
     uint16_t get_ppm(uint8_t ch);
     bool channel_enabled(uint8_t ch);
-
+	void send_mavlink(uint8_t ch);
 
     static AP_CANopen* get_canopen(uint8_t driver_index);
 
