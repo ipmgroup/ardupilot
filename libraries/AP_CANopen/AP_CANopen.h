@@ -63,7 +63,7 @@ private:
     	uint8_t ui8[8];
     } CAN_Data;
 
-    struct {
+    struct SRV_conf{
     	uint8_t id;
         uint16_t pulse;
         bool servo_pending;
@@ -95,7 +95,7 @@ private:
 
     uavcan::MonotonicTime _last_sync;
 
-    void send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
+    int16_t send_raw_packet(uint32_t id, uint8_t* data, uint8_t len);
     int recv_raw_packet(uavcan::CanFrame& recv_frame);
     void recv_telem();
     int32_t ppm_to_rpm(int ppm);

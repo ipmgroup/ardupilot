@@ -100,15 +100,16 @@ AP_CANopen::AP_CANopen() :
 {
     AP_Param::setup_object_defaults(this, var_info);
 
+    SRV_sem = hal.util->new_semaphore();
+    _telem_sem = hal.util->new_semaphore();
+	
+	//WITH_SEMAPHORE(SRV_sem);
     for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
         _srv_conf[i].servo_pending = false;
         _srv_conf[i].esc_pending = false;
     }
 
     _last_sync = _last_sync.fromUSec(0);
-
-    SRV_sem = hal.util->new_semaphore();
-    _telem_sem = hal.util->new_semaphore();
 
     //debug_can(2, "AP_CANopen constructed\n\r");
 }
@@ -151,10 +152,13 @@ int AP_CANopen::node_discovery(){
     }
 
     int i = 0;
-    for(std::map<uint8_t, uint8_t>::iterator it = _discovered_nodes.begin(); it != _discovered_nodes.end() && i < CANOPEN_SRV_NUMBER; it++){
-    	_srv_conf[i].id = it->first;
-    	it->second = i;
-    	i++;
+    {
+    	WITH_SEMAPHORE(SRV_sem);
+	    for(std::map<uint8_t, uint8_t>::iterator it = _discovered_nodes.begin(); it != _discovered_nodes.end() && i < CANOPEN_SRV_NUMBER; it++){
+	    	_srv_conf[i].id = it->first;
+	    	it->second = i;
+	    	i++;
+	    }
     }
 
     _srv_node_cnt = i;
@@ -174,20 +178,28 @@ uint8_t AP_CANopen::get_node_count(){
 
 void AP_CANopen::srv_send_actuator(void)
 {
-	//printf("srv_send_actuator()\n");
-	for(int i = 0; i < _srv_node_cnt; i++){
+	struct SRV_conf conf[sizeof(_srv_conf)];
+	
+	{
 		WITH_SEMAPHORE(SRV_sem);
-		if(_srv_conf[i].servo_pending && (((uint32_t)1) << i) & _servo_bm){
+		memcpy(conf, _srv_conf, sizeof(struct SRV_conf)*CANOPEN_SRV_NUMBER);
+	}
+	
+	for(int i = 0; i < _srv_node_cnt; i++){
+		if(conf[i].servo_pending && (((uint32_t)1) << i) & _servo_bm){
 			CAN_Data data;
 
-			int32_t rpm = ppm_to_rpm(_srv_conf[i].pulse);
+			int32_t rpm = ppm_to_rpm(conf[i].pulse);
 			data.i32[0] = _rpmps;
 			data.i32[1] = rpm;
-			_srv_conf[i].servo_pending = false;
-			uint32_t id = 0x300 | _srv_conf[i].id;
-			hal.scheduler->delay_microseconds(1);
-			send_raw_packet(id, data.ui8, 8);
-			hal.scheduler->delay_microseconds(500); // TODO: investigate why this is needed.
+			//conf[i].servo_pending = false;
+			uint32_t id = 0x300 | conf[i].id;
+			//hal.scheduler->delay_microseconds(1);
+			int16_t sent = send_raw_packet(id, data.ui8, 8);
+			if(sent < 1) {
+				debug_can(2, "Couldn't send CAN frame: %d\n\r", sent);
+			}
+			//hal.scheduler->delay_microseconds(800); // TODO: investigate why this is needed.
 		}
 	}
 }
@@ -197,12 +209,13 @@ void AP_CANopen::srv_send_esc(void)
     uint8_t active_esc_num = 0, max_esc_num = 0;
     uint8_t k = 0;
 
+	WITH_SEMAPHORE(SRV_sem); //TODO: implement so that send_raw_packet isn't in semaphores
+
     // find out how many esc we have enabled and if they are active at all
     for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
         if ((((uint32_t) 1) << i) & _esc_bm) {
             max_esc_num = i + 1;
             
-            WITH_SEMAPHORE(SRV_sem);
             if (_srv_conf[i].esc_pending) {
                 active_esc_num++;
             }
@@ -217,11 +230,10 @@ void AP_CANopen::srv_send_esc(void)
     		if ((((uint32_t) 1) << i) & _esc_bm && i < _srv_node_cnt) {
     			CAN_Data data;
 
-				WITH_SEMAPHORE(SRV_sem);
     			int32_t rpm = ppm_to_rpm(_srv_conf[i].pulse);
     			data.i32[0] = _rpmps;
     			data.i32[1] = rpm;
-    			_srv_conf[i].esc_pending = false;
+    			//_srv_conf[i].esc_pending = false;
     			uint32_t id = 0x300 | _srv_conf[i].id;
     			send_raw_packet(id, data.ui8, 8);
     		}
@@ -234,7 +246,8 @@ void AP_CANopen::loop(void)
 	while (true) {
 	    if (!_initialized) {
 	        hal.scheduler->delay_microseconds(1000);
-	        return;
+	        //return;
+	        continue;
 	    }
 	
 		// If actuators aren't armed yet and some motor is expected to move, enable them.
@@ -246,21 +259,32 @@ void AP_CANopen::loop(void)
 		}
 
 		if (_srv_armed) {
-			bool sent_servos = false;
-			
-			// if we have any Servos in bitmask
-			if (_servo_bm > 0) {
-				uint32_t now = AP_HAL::micros();
-				if (now - _srv_last_send_us >= (uint32_t)_can_interval_us) {
-					_srv_last_send_us = now;
+			uint32_t now = AP_HAL::micros();
+			if (now - _srv_last_send_us >= (uint32_t)_can_interval_us) {
+				_srv_last_send_us = now;
+				bool sent_servos = false;
+				// if we have any Servos in bitmask
+				if (_servo_bm > 0) {
 					srv_send_actuator();
 					sent_servos = true;
+					{
+						WITH_SEMAPHORE(SRV_sem);
+						for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
+		                    _srv_conf[i].servo_pending = false;
+		                }
+	                }
 				}
-			}
-
-			// if we have any ESC's in bitmask
-			if (_esc_bm > 0 && !sent_servos) {
-				srv_send_esc();
+				
+				// if we have any ESC's in bitmask
+				if (_esc_bm > 0 && !sent_servos) {
+					srv_send_esc();
+					{
+						WITH_SEMAPHORE(SRV_sem);
+						for (uint8_t i = 0; i < CANOPEN_SRV_NUMBER; i++) {
+			                _srv_conf[i].esc_pending = false;
+			            }
+		            }
+				}
 			}
 
 			recv_telem();
@@ -268,18 +292,41 @@ void AP_CANopen::loop(void)
 	}
 }
 
-void AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
+// Returns 0 if tx buffer is full, 1 if a frame was sent, negative if error.
+int16_t AP_CANopen::send_raw_packet(uint32_t id, uint8_t* data, uint8_t len)
 {
     if (len > 8) {
         len = 8;
     }
+    
+    int16_t ret = 0;
+    
+    uavcan::CanFrame empty_frame { (0 | uavcan::CanFrame::FlagEFF), nullptr, 0 };
+    const uavcan::CanFrame* select_frames[uavcan::MaxCanIfaces] { };
+    select_frames[_driver_index] = &empty_frame;
 
     uavcan::CanFrame frm((id), data, len);
+    uavcan::MonotonicTime now = SystemClock::instance().getMonotonic();
     uavcan::MonotonicDuration dur;
-    dur = dur.fromMSec(100);
-    uavcan::MonotonicTime ddt = SystemClock::instance().getMonotonic() + dur;
-    //printf("%ul %ul\n", dur.toMSec(), ddt.toMSec());
-    get_can_driver()->getIface(_driver_index)->send(frm, ddt, 0);
+    dur = uavcan::MonotonicDuration::fromMSec(100);
+    uavcan::MonotonicTime ddt = now + dur;
+    uavcan::MonotonicDuration dst;
+    dst = uavcan::MonotonicDuration::fromUSec(1000);
+    uavcan::MonotonicTime select_timeout = now + dst;
+    
+    uavcan::CanSelectMasks inout_mask;
+	//inout_mask.write = 1 << _driver_index;
+	//uavcan::CanSelectMasks in_mask = inout_mask;
+	
+	select_frames[_driver_index] = &frm;
+	get_can_driver()->select(inout_mask, select_frames, select_timeout);
+    select_frames[_driver_index] = &empty_frame;
+    
+    if (/*in_mask.write & */inout_mask.write) {
+    	ret = get_can_driver()->getIface(_driver_index)->send(frm, ddt, 0);
+    }
+    
+    return ret;
 }
 
 int AP_CANopen::recv_raw_packet(uavcan::CanFrame& recv_frame)
@@ -355,6 +402,7 @@ void AP_CANopen::recv_telem(){
 		//printf("motor ppm: %d %d %d %d\n", _srv_conf[0].pulse_read, _srv_conf[1].pulse_read, _srv_conf[2].pulse_read, _srv_conf[3].pulse_read);
 		return;
 	}else{
+		WITH_SEMAPHORE(_telem_sem);
 		for(int i = 0; i < _srv_node_cnt; i++){
 			_srv_conf[i].pulse_read = _srv_conf[i].pulse;
 		}
@@ -365,7 +413,7 @@ void AP_CANopen::recv_telem(){
 uint16_t AP_CANopen::get_ppm(uint8_t ch){
 	uint16_t ppm = 0;
 
-	WITH_SEMAPHORE(SRV_sem);
+	//WITH_SEMAPHORE(SRV_sem);
 	ppm = _srv_conf[ch].pulse_read;
 
 	return ppm;
@@ -427,26 +475,34 @@ void AP_CANopen::srv_arm_actuators(bool arm)
 {
 	uint16_t pdo1 = arm?_ctl:0;
 	int32_t pdo2[2] = {_rpmps, 0};
-	//printf("%s %d actuators\n", arm?"arming":"disarming", _srv_node_cnt);
+	uint8_t ids[_srv_node_cnt];
+	
+	// Creating scope to make sure the semaphore is released as soon as it's no longer needed.
+	{
+		WITH_SEMAPHORE(SRV_sem);
+		for(int i = 0; i < _srv_node_cnt; i++){
+			ids[i] = _srv_conf[i].id;
+		}
+	}
+	
 	for(int i = 0; i < _srv_node_cnt; i++){
 		//printf("%s node %d\n", arm?"Activating":"Deactivating", _srv_conf[i].id);
-		send_raw_packet(0x200 | _srv_conf[i].id, (uint8_t*)&pdo1, 2);
-		send_raw_packet(0x300 | _srv_conf[i].id, (uint8_t*)&pdo2, 8);
-		//hal.scheduler->delay(1);
-		usleep(1000);
+		send_raw_packet(0x200 | ids[i], (uint8_t*)&pdo1, 2);
+		send_raw_packet(0x300 | ids[i], (uint8_t*)&pdo2, 8);
+		hal.scheduler->delay_microseconds(500);
 	}
 	if(_srv_node_cnt > 0){
 		_srv_armed = arm;
 	}
 }
 
-void AP_CANopen::srv_write(uint16_t pulse_len, uint8_t ch)
-{
-	WITH_SEMAPHORE(SRV_sem);
-    _srv_conf[ch].pulse = pulse_len;
-    _srv_conf[ch].servo_pending = true;
-    _srv_conf[ch].esc_pending = true;
-}
+// void AP_CANopen::srv_write(uint16_t pulse_len, uint8_t ch)
+// {
+// 	//WITH_SEMAPHORE(SRV_sem);
+//     _srv_conf[ch].pulse = pulse_len;
+//     _srv_conf[ch].servo_pending = true;
+//     _srv_conf[ch].esc_pending = true;
+// }
 
 AP_CANopen* AP_CANopen::get_canopen(uint8_t driver_index)
 {
@@ -459,14 +515,18 @@ AP_CANopen* AP_CANopen::get_canopen(uint8_t driver_index)
 
 void AP_CANopen::SRV_push_servos()
 {
+	WITH_SEMAPHORE(SRV_sem);
+	
     for (uint8_t i = 0; i < NUM_SERVO_CHANNELS; i++) {
-        // Check if this channels has any function assigned
+        // Check if this channel has any function assigned
         if (SRV_Channels::channel_function(i)) {
-            srv_write(SRV_Channels::srv_channel(i)->get_output_pwm(), i);
+            //srv_write(SRV_Channels::srv_channel(i)->get_output_pwm(), i);
+           _srv_conf[i].pulse = SRV_Channels::srv_channel(i)->get_output_pwm();
+           _srv_conf[i].esc_pending = true;
+           _srv_conf[i].servo_pending = true;
+            
         }
     }
-
-    _srv_armed = hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED;
 }
 
 void AP_CANopen::send_mavlink(uint8_t ch) {
