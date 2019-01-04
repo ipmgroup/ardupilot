@@ -168,7 +168,6 @@ public:
 
     void srv_arm_actuators(bool arm);
     void SRV_push_servos();
-    void srv_write(uint16_t pulse_len, uint8_t ch);
     uint16_t get_ppm(uint8_t ch);
     bool channel_enabled(uint8_t ch);
 	void send_mavlink(uint8_t ch);
